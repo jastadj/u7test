@@ -35,15 +35,25 @@ bool FLXFile::open(std::string filename)
     m_HeaderMagic1 = bytes_to_uint32();
     m_HeaderCount = bytes_to_uint32();
     m_HeaderMagic2 = bytes_to_uint32();
-    for(int i = 0; i <= 8; i++) m_HeaderOther.push_back(bytes_to_uint8());
+    for(int i = 0; i < 36; i++) m_HeaderOther.push_back(bytes_to_uint8());
 
     // read in record table
-    for(int i = 0; i < m_HeaderCount; i++)
+    for(int i = 0; i < int(m_HeaderCount); i++)
     {
         Record newrecord;
         newrecord.offset = bytes_to_uint32();
         newrecord.length = bytes_to_uint32();
         m_Records.push_back(newrecord);
+    }
+
+    // read in record data
+    for(int i = 0; i < int(m_Records.size()); i++)
+    {
+        m_File.seekg( m_Records[i].offset);
+        for(int n = 0; n < int(m_Records[i].length); n++)
+        {
+            m_Records[i].data.push_back( uint8_t( (unsigned char)m_File.get()) );
+        }
     }
 
     m_File.close();
@@ -84,6 +94,13 @@ uint8_t FLXFile::bytes_to_uint8()
     return val;
 }
 
+std::vector<uint8_t> FLXFile::getRecord(int index)
+{
+    std::vector<uint8_t> record;
+    if(index < 0 || index >= int(m_Records.size()) ) return record;
+    return m_Records[index].data;
+}
+
 void FLXFile::show()
 {
     std::cout << "Title:" << m_HeaderTitle << std::endl;
@@ -96,7 +113,11 @@ void FLXFile::show()
         std::cout << std::hex << std::setw(2) << std::setfill('0') << int(m_HeaderOther[i]) << " ";
         if(i == int(m_HeaderOther.size()-1) ) std::cout << std::endl;
     }
-    std::cout << "Records:" << m_Records.size();
-
+    std::cout << "Record Table:\n";
+    for(int i = 0; i < int(m_Records.size()); i++)
+    {
+        std::cout << i << ": " << "0x" << std::hex << m_Records[i].offset << ",len=" << std::dec << m_Records[i].length << std::endl;
+    }
+    std::cout << "Records:" << std::dec << getRecordCount() << std::endl;
 
 }

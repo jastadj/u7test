@@ -36,6 +36,8 @@ public:
 
     bool open(std::string filename);
     std::string getTitle() { return m_HeaderTitle;}
+    int getRecordCount() { return int(m_Records.size());}
+    std::vector<uint8_t> getRecord(int index);
 
     // debug
     void show();

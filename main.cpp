@@ -1,22 +1,12 @@
 #include <cstdlib>
 
-// testing
-#include <iostream>
-#include <string>
-#include "flx.hpp"
+#include "u7.hpp"
 
 int main(int argc, char *argv[])
 {
-
-    std::string testfile("u7\\STATIC\\PALETTES.flx");
-
-    // testing
-    FLXFile testflx;
-    if(testflx.open(testfile))
-    {
-        testflx.show();
-    }
-    else std::cout << "error opening " << testfile << std::endl;
+    U7 *u7;
+    u7 = U7::getInstance();
+    u7->init();
 
     return 0;
 }
