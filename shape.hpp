@@ -12,6 +12,11 @@ private:
     struct ShapeFrame
     {
         int offset;
+
+        uint16_t max_x;
+        uint16_t max_y;
+        uint16_t offset_x;
+        uint16_t offset_y;
     };
 
     std::vector<ShapeFrame> m_Frames;

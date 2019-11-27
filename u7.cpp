@@ -55,6 +55,7 @@ int U7::init()
     if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) std::cout << "Error opening FONTS.VGA" << std::endl;
     else
     {
+        fontflx.show();
         Shape newshape(fontflx.getRecord(0));
     }
 
