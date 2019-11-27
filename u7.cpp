@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "flx.hpp"
+#include "shape.hpp"
 
 U7 *U7::m_Instance = NULL;
 
@@ -25,7 +26,7 @@ int U7::init()
 
     // load palettes
     FLXFile paletteflx;
-    if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/palettes.flx")) std::cout << "Error opening palettes.flx" << std::endl;
+    if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/PALETTES.FLX")) std::cout << "Error opening palettes.flx" << std::endl;
     else
     {
         for(int i = 0; i < paletteflx.getRecordCount(); i++)
@@ -46,6 +47,15 @@ int U7::init()
 
         }
         std::cout << m_Palettes.size() << " palettes loaded." << std::endl;
+
+    }
+
+    // load font
+    FLXFile fontflx;
+    if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) std::cout << "Error opening FONTS.VGA" << std::endl;
+    else
+    {
+        Shape newshape(fontflx.getRecord(0));
     }
 
     // init screen

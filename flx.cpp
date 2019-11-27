@@ -121,3 +121,30 @@ void FLXFile::show()
     std::cout << "Records:" << std::dec << getRecordCount() << std::endl;
 
 }
+
+void FLXFile::showRecord(int index)
+{
+    int len = 0;
+
+    if(index < 0 || index >= int(m_Records.size()) )
+    {
+        std::cout << "Index " << index << " invald.\n";
+        return;
+    }
+
+    len = int(m_Records[index].data.size());
+
+    for(int i = 0; i < int(m_Records[index].data.size()); i++)
+    {
+        if( i%16 == 0)
+        {
+            std::cout << std::endl;
+            std::cout << std::dec << "0x" << std::setw(8) << std::setfill('0') << std::hex << i << " ";
+        }
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned int)m_Records[index].data[i] << " ";
+    }
+
+    if(len != m_Records[index].length) std::cout << "Actual record length does not match record header length!\n";
+
+    return;
+}

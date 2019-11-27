@@ -44,6 +44,8 @@
 		<Unit filename="flx.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="palette.hpp" />
+		<Unit filename="shape.cpp" />
+		<Unit filename="shape.hpp" />
 		<Unit filename="u7.cpp" />
 		<Unit filename="u7.hpp" />
 		<Extensions>

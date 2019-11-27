@@ -41,6 +41,7 @@ public:
 
     // debug
     void show();
+    void showRecord(int index);
 };
 
 #endif // CLASS_FLX
