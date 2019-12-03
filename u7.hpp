@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "palette.hpp"
+#include "shape.hpp"
 
 #define U7_DIR "./u7"
 
@@ -20,10 +21,15 @@ private:
 
     std::vector<Palette> m_Palettes;
 
+    std::vector< Shape > m_FontShapes;
+    std::vector< std::vector<sf::Sprite*> > m_Fonts;
+
+
     int mainLoop();
 
     // test
     void showPalettes();
+    void showShape(Shape *tshape);
 
 public:
     static U7 *getInstance()
@@ -33,5 +39,7 @@ public:
     }
 
     int init();
+
+
 };
 #endif // CLASS_U7

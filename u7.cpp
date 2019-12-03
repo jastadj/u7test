@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "flx.hpp"
-#include "shape.hpp"
 
 U7 *U7::m_Instance = NULL;
 
@@ -24,7 +23,14 @@ int U7::init()
 
     std::cout << "Initializing...\n";
 
+    // init screen
+    std::cout << "Initializing screen...\n";
+    m_Screen = new sf::RenderWindow(sf::VideoMode(800,600,32), "U7Test");
+    m_Screen->clear();
+    m_Screen->display();
+
     // load palettes
+    std::cout << "Initializing palettes...\n";
     FLXFile paletteflx;
     if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/PALETTES.FLX")) std::cout << "Error opening palettes.flx" << std::endl;
     else
@@ -50,21 +56,30 @@ int U7::init()
 
     }
 
-    // load font
+    // load fonts
+    std::cout << "Initializing fonts...\n";
     FLXFile fontflx;
     if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) std::cout << "Error opening FONTS.VGA" << std::endl;
     else
     {
-        fontflx.show();
-        Shape newshape(fontflx.getRecord(0));
-    }
+        for(int i = 0; i < fontflx.getRecordCount(); i++)
+        {
+            std::vector<uint8_t> trecord = fontflx.getRecord(i);
 
-    // init screen
-    m_Screen = new sf::RenderWindow(sf::VideoMode(800,600,32), "U7Test");
+            if( int(trecord.size()) != 0)
+            {
+                m_FontShapes.push_back( Shape(trecord));
+                m_Fonts.push_back( m_FontShapes.back().toSprites(m_Palettes[0]));
+            }
+        }
+        std::cout << m_Fonts.size() << " fonts loaded.\n";
+
+    }
 
     initialized = true;
 
     // start main loop
+    std::cout << "Starting main loop...\n";
     mainLoop();
 
     return 0;
@@ -73,6 +88,10 @@ int U7::init()
 int U7::mainLoop()
 {
     bool quit = false;
+
+    sf::Sprite tsprite(*m_Fonts[0][65]);
+    tsprite.setPosition(sf::Vector2f(20,20));
+    tsprite.setScale(sf::Vector2f(2.0,2.0));
 
     while(!quit)
     {
@@ -91,11 +110,13 @@ int U7::mainLoop()
             {
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
+                else if(event.key.code == sf::Keyboard::F2) showShape(&m_FontShapes[0]);
             }
 
         }
 
         // draw
+        m_Screen->draw(tsprite);
 
         // display
         m_Screen->display();
@@ -106,30 +127,40 @@ int U7::mainLoop()
 
 void U7::showPalettes()
 {
-    const float PRECT_SIZE = 4.0;
+    float rect_scalar = 4.0;
+    float max_rect_scalar = 16.0;
     bool quit = false;
-
+    bool needs_init = true;
     std::vector< std::vector<sf::RectangleShape> > pal;
     int prev_pal = -1;
     int cur_pal = 0;
 
-    // init palette rects
-    for(int i = 0; i < 16; i++)
-    {
-        pal.push_back( std::vector<sf::RectangleShape>());
-        for(int n = 0; n < 16; n++)
-        {
-            sf::RectangleShape nrect( sf::Vector2f(PRECT_SIZE, PRECT_SIZE));
-            nrect.setFillColor( m_Palettes[cur_pal].colors[(i*16)+n] );
-            nrect.setPosition(sf::Vector2f(i*PRECT_SIZE, n*PRECT_SIZE));
-            pal[i].push_back(nrect);
-        }
-    }
+
 
     while(!quit)
     {
         m_Screen->clear();
         sf::Event event;
+
+        // if needs init
+        if(needs_init)
+        {
+            pal.clear();
+            for(int i = 0; i < 16; i++)
+            {
+                pal.push_back( std::vector<sf::RectangleShape>());
+                for(int n = 0; n < 16; n++)
+                {
+                    sf::RectangleShape nrect( sf::Vector2f(rect_scalar, rect_scalar));
+                    nrect.setFillColor( m_Palettes[cur_pal].colors[(i*16)+n] );
+                    nrect.setPosition(sf::Vector2f(i*rect_scalar, n*rect_scalar));
+                    pal[i].push_back(nrect);
+                }
+            }
+            needs_init = false;
+        }
+
+
         while(m_Screen->pollEvent(event))
         {
             if(event.type == sf::Event::Closed) quit = true;
@@ -145,6 +176,22 @@ void U7::showPalettes()
                 {
                     cur_pal++;
                     if(cur_pal >= int(m_Palettes.size())) cur_pal = 0;
+                }
+                else if(event.key.code == sf::Keyboard::Add)
+                {
+                    if(rect_scalar < max_rect_scalar)
+                    {
+                        rect_scalar += 1.0;
+                        needs_init = true;
+                    }
+                }
+                else if(event.key.code == sf::Keyboard::Subtract)
+                {
+                    if(rect_scalar != 1.0)
+                    {
+                        rect_scalar -= 1.0;
+                        needs_init = true;
+                    }
                 }
             }
         }
@@ -175,5 +222,87 @@ void U7::showPalettes()
 
         m_Screen->display();
 
+    }
+}
+
+void U7::showShape(Shape *tshape)
+{
+    if(!tshape) return;
+    bool quit = false;
+    static float shape_scalar = 1.0;
+    int cur_index = 0;
+    int prev_index = -1;
+    int cur_pal = 0;
+    int prev_pal = -1;
+    std::vector<sf::Sprite*> sprites;
+    int frame_count = tshape->getFrameCount();
+
+    if(!frame_count) return;
+
+    while(!quit)
+    {
+        m_Screen->clear();
+
+        sf::Event event;
+
+        // if palette is changed, update sprites
+        if(cur_pal != prev_pal)
+        {
+            sprites.clear();
+            sprites = tshape->toSprites(m_Palettes[cur_pal]);
+            prev_pal = cur_pal;
+            std::cout << "Current pal:" << cur_pal << std::endl;
+        }
+
+        if(cur_index != prev_index)
+        {
+            prev_index = cur_index;
+            std::cout << "Current frame:" << cur_index << std::endl;
+        }
+
+        while(m_Screen->pollEvent(event))
+        {
+            if(event.type == sf::Event::Closed) quit = true;
+            else if(event.type == sf::Event::KeyPressed)
+            {
+                if(event.key.code == sf::Keyboard::Escape) quit = true;
+                else if(event.key.code == sf::Keyboard::Left)
+                {
+                    cur_index--;
+                    if(cur_index < 0) cur_index = frame_count-1;
+                }
+                else if(event.key.code == sf::Keyboard::Right)
+                {
+                    cur_index++;
+                    if(cur_index >= frame_count) cur_index = 0;
+                }
+                else if(event.key.code == sf::Keyboard::Add)
+                {
+                    shape_scalar += 1.0;
+                    if(shape_scalar > 4.0) shape_scalar = 4.0;
+                }
+                else if(event.key.code == sf::Keyboard::Subtract)
+                {
+                    shape_scalar -= 1.0;
+                    if(shape_scalar < 1.0) shape_scalar = 1.0;
+                }
+                else if(event.key.code == sf::Keyboard::Up)
+                {
+                    cur_pal--;
+                    if(cur_pal < 0) cur_pal = int(m_Palettes.size()-1);
+                }
+                else if(event.key.code == sf::Keyboard::Down)
+                {
+                    cur_pal++;
+                    if(cur_pal >= int(m_Palettes.size())) cur_pal = 0;
+                }
+            }
+        }
+
+        sprites[cur_index]->setScale(shape_scalar, shape_scalar);
+        sprites[cur_index]->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
+        m_Screen->draw(*sprites[cur_index]);
+
+        m_Screen->display();
     }
 }
