@@ -23,7 +23,7 @@ private:
 
     std::vector<Palette> m_Palettes;
     std::vector<Font*> m_Fonts;
-    std::vector<TileSet> m_TileSets;
+    std::vector<TileSet*> m_TileSets;
 
 
 
@@ -34,6 +34,7 @@ private:
     // test
     void showPalettes();
     void showShape(Shape *tshape);
+    void showTiles();
 
 public:
     static U7 *getInstance()
@@ -43,7 +44,5 @@ public:
     }
 
     int init();
-
-
 };
 #endif // CLASS_U7

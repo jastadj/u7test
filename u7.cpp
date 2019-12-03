@@ -83,7 +83,11 @@ int U7::init()
     else
     {
         // tiles (records 0x00 - 0x95)
-        std::vector<uint8_t> trecord = shapes.getRecord(0);
+        for(int i = 0; i <= 0x95; i++)
+        {
+            std::vector<uint8_t> trecord = shapes.getRecord(i);
+            m_TileSets.push_back( new TileSet(trecord, &m_Palettes[0]));
+        }
 
     }
 
@@ -117,6 +121,7 @@ int U7::mainLoop()
             {
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
+                else if(event.key.code == sf::Keyboard::F2) showTiles();
             }
 
         }
@@ -321,4 +326,95 @@ void U7::showShape(Shape *tshape)
     if(sprite) delete sprite;
     if(texture) delete texture;
     if(image) delete image;
+}
+
+void U7::showTiles()
+{
+    bool quit = false;
+    static float scalar = 1.0;
+    const float max_scalar = 8.0;
+    int cur_tile = 0;
+    int prev_tile = -1;
+    int cur_set = 0;
+    int prev_set = -1;
+    sf::Sprite *sprite = new sf::Sprite;
+
+    if(m_TileSets.empty()) return;
+    if(m_TileSets[0]->getTileCount() == 0) return;
+
+    while(!quit)
+    {
+        m_Screen->clear();
+
+        sf::Event event;
+
+        // update tile set
+        if(prev_set != cur_set)
+        {
+            if(sprite) {delete sprite; sprite = NULL;}
+            cur_tile = 0;
+            prev_tile = -1;
+            prev_set = cur_set;
+        }
+
+        // update tile
+        if(prev_tile != cur_tile)
+        {
+            if(sprite) delete sprite;
+            sprite = m_TileSets[cur_set]->getSprite(cur_tile);
+            prev_tile = cur_tile;
+            std::cout << "tileset:" << cur_set << ", tile:" << cur_tile << std::endl;
+        }
+        while(m_Screen->pollEvent(event))
+        {
+            if(event.type == sf::Event::Closed) quit = true;
+            else if(event.type == sf::Event::KeyPressed)
+            {
+                if(event.key.code == sf::Keyboard::Escape) quit = true;
+                else if(event.key.code == sf::Keyboard::Left)
+                {
+                    cur_tile--;
+                    if(cur_tile < 0) cur_tile = m_TileSets[cur_set]->getTileCount()-1;
+                }
+                else if(event.key.code == sf::Keyboard::Right)
+                {
+                    cur_tile++;
+                    if(cur_tile >= m_TileSets[cur_set]->getTileCount()) cur_tile = 0;
+                }
+                else if(event.key.code == sf::Keyboard::Add)
+                {
+                    scalar += 1.0;
+                    if(scalar > max_scalar) scalar = max_scalar;
+                }
+                else if(event.key.code == sf::Keyboard::Subtract)
+                {
+                    scalar -= 1.0;
+                    if(scalar < 1.0) scalar = 1.0;
+                }
+                else if(event.key.code == sf::Keyboard::Up)
+                {
+                    cur_set--;
+                    if(cur_set < 0) cur_set = int(m_TileSets.size()-1);
+                }
+                else if(event.key.code == sf::Keyboard::Down)
+                {
+                    cur_set++;
+                    if(cur_set >= int(m_TileSets.size())) cur_set = 0;
+                }
+            }
+        }
+
+        if(sprite)
+        {
+            sprite->setScale(scalar, scalar);
+            sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
+            m_Screen->draw(*sprite);
+        }
+
+        m_Screen->display();
+    }
+
+    // cleanup
+    if(sprite) delete sprite;
+
 }
