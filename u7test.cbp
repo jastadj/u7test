@@ -42,10 +42,14 @@
 		</Linker>
 		<Unit filename="flx.cpp" />
 		<Unit filename="flx.hpp" />
+		<Unit filename="font.cpp" />
+		<Unit filename="font.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="palette.hpp" />
 		<Unit filename="shape.cpp" />
 		<Unit filename="shape.hpp" />
+		<Unit filename="tile.cpp" />
+		<Unit filename="tile.hpp" />
 		<Unit filename="u7.cpp" />
 		<Unit filename="u7.hpp" />
 		<Extensions>

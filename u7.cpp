@@ -65,14 +65,25 @@ int U7::init()
         for(int i = 0; i < fontflx.getRecordCount(); i++)
         {
             std::vector<uint8_t> trecord = fontflx.getRecord(i);
-
             if( int(trecord.size()) != 0)
             {
-                m_FontShapes.push_back( Shape(trecord));
-                m_Fonts.push_back( m_FontShapes.back().toSprites(m_Palettes[0]));
+                Shape *fshape = new Shape(trecord);
+                Font *newfont = new Font(fshape);
+                m_Fonts.push_back( newfont );
+                m_Fonts.back()->addPalette(&m_Palettes[0]);
             }
         }
         std::cout << m_Fonts.size() << " fonts loaded.\n";
+    }
+
+    // load shapes (tiles and objects)
+    std::cout << "Initializing tiles/shapes...\n";
+    FLXFile shapes;
+    if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA")) std::cout << "Error opening SHAPES.VGA" << std::endl;
+    else
+    {
+        // tiles (records 0x00 - 0x95)
+        std::vector<uint8_t> trecord = shapes.getRecord(0);
 
     }
 
@@ -88,10 +99,6 @@ int U7::init()
 int U7::mainLoop()
 {
     bool quit = false;
-
-    sf::Sprite tsprite(*m_Fonts[0][65]);
-    tsprite.setPosition(sf::Vector2f(20,20));
-    tsprite.setScale(sf::Vector2f(2.0,2.0));
 
     while(!quit)
     {
@@ -110,13 +117,12 @@ int U7::mainLoop()
             {
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
-                else if(event.key.code == sf::Keyboard::F2) showShape(&m_FontShapes[0]);
             }
 
         }
 
         // draw
-        m_Screen->draw(tsprite);
+
 
         // display
         m_Screen->display();
@@ -230,12 +236,15 @@ void U7::showShape(Shape *tshape)
     if(!tshape) return;
     bool quit = false;
     static float shape_scalar = 1.0;
+    const float max_scale = 8.0;
     int cur_index = 0;
     int prev_index = -1;
     int cur_pal = 0;
     int prev_pal = -1;
-    std::vector<sf::Sprite*> sprites;
     int frame_count = tshape->getFrameCount();
+    sf::Texture *texture = new sf::Texture;
+    sf::Image *image = new sf::Image;
+    sf::Sprite *sprite = new sf::Sprite;
 
     if(!frame_count) return;
 
@@ -246,18 +255,16 @@ void U7::showShape(Shape *tshape)
         sf::Event event;
 
         // if palette is changed, update sprites
-        if(cur_pal != prev_pal)
+        if( (cur_pal != prev_pal) || (cur_index != prev_index) )
         {
-            sprites.clear();
-            sprites = tshape->toSprites(m_Palettes[cur_pal]);
+            if(image) delete image;
+            image = tshape->toImage(cur_index, m_Palettes[cur_pal] );
+            texture->loadFromImage(*image);
+            if(sprite) delete sprite;
+            sprite = new sf::Sprite(*texture);
             prev_pal = cur_pal;
-            std::cout << "Current pal:" << cur_pal << std::endl;
-        }
-
-        if(cur_index != prev_index)
-        {
             prev_index = cur_index;
-            std::cout << "Current frame:" << cur_index << std::endl;
+            std::cout << "Frame:" << cur_index << ", pal:" << cur_pal << std::endl;
         }
 
         while(m_Screen->pollEvent(event))
@@ -279,7 +286,7 @@ void U7::showShape(Shape *tshape)
                 else if(event.key.code == sf::Keyboard::Add)
                 {
                     shape_scalar += 1.0;
-                    if(shape_scalar > 4.0) shape_scalar = 4.0;
+                    if(shape_scalar > max_scale) shape_scalar = max_scale;
                 }
                 else if(event.key.code == sf::Keyboard::Subtract)
                 {
@@ -299,10 +306,19 @@ void U7::showShape(Shape *tshape)
             }
         }
 
-        sprites[cur_index]->setScale(shape_scalar, shape_scalar);
-        sprites[cur_index]->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
-        m_Screen->draw(*sprites[cur_index]);
+        if(sprite)
+        {
+            sprite->setScale(shape_scalar, shape_scalar);
+            sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
+            m_Screen->draw(*sprite);
+        }
+
 
         m_Screen->display();
     }
+
+    // cleanup
+    if(sprite) delete sprite;
+    if(texture) delete texture;
+    if(image) delete image;
 }

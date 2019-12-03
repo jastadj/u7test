@@ -7,6 +7,8 @@
 
 #include "palette.hpp"
 #include "shape.hpp"
+#include "font.hpp"
+#include "tile.hpp"
 
 #define U7_DIR "./u7"
 
@@ -20,9 +22,11 @@ private:
     sf::RenderWindow *m_Screen;
 
     std::vector<Palette> m_Palettes;
+    std::vector<Font*> m_Fonts;
+    std::vector<TileSet> m_TileSets;
 
-    std::vector< Shape > m_FontShapes;
-    std::vector< std::vector<sf::Sprite*> > m_Fonts;
+
+
 
 
     int mainLoop();

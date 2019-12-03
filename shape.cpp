@@ -107,38 +107,32 @@ Shape::Shape(std::vector<uint8_t> record)
 
 Shape::~Shape()
 {
-
-}
-
-std::vector<sf::Sprite*> Shape::toSprites(Palette tpal, int transparency_index)
-{
-    std::vector<sf::Sprite*> sprites;
-
     for(int i = 0; i < int(m_Frames.size()); i++)
     {
-        // create image from frame pixel data
-        sf::Vector2u dim = m_Frames[i]->getDims();
-        m_Frames[i]->image->create(dim.x,dim.y);
+        delete m_Frames[i];
+    }
+}
 
-        for(uint32_t y = 0; y < uint32_t(m_Frames[i]->pixels.size()); y++)
+sf::Image *Shape::toImage(int frame_index, Palette &pal)
+{
+    sf::Image *img = NULL;
+    ShapeFrame *tframe = NULL;
+    if(frame_index < 0 || frame_index >= int(m_Frames.size())) return img;
+
+    tframe = m_Frames[frame_index];
+
+    img = new sf::Image;
+    img->create(tframe->getDims().x, tframe->getDims().y);
+
+    for(uint32_t y = 0; y < tframe->getDims().y; y++)
+    {
+        for(uint32_t x = 0; x < tframe->getDims().x; x++)
         {
-            for(uint32_t x = 0; x < uint32_t(m_Frames[i]->pixels[y].size()); x++)
-            {
-                int pindex = m_Frames[i]->pixels[y][x];
-
-                if(pindex == transparency_index) m_Frames[i]->image->setPixel(x,y, sf::Color::Transparent);
-                else m_Frames[i]->image->setPixel(x,y, tpal.colors[pindex]);
-            }
+            img->setPixel(x, y, pal.colors[tframe->pixels[y][x]]);
         }
-
-        m_Frames[i]->texture->loadFromImage(*m_Frames[i]->image);
-        sf::Sprite *newsprite = new sf::Sprite(*m_Frames[i]->texture);
-        newsprite->setOrigin( sf::Vector2f(float(m_Frames[i]->offset_x), float(m_Frames[i]->offset_y)) );
-        sprites.push_back(newsprite);
-
     }
 
-    return sprites;
+    return img;
 }
 
 void Shape::show()

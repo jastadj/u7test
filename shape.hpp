@@ -24,8 +24,6 @@ private:
         uint16_t offset_x;
         uint16_t offset_y;
 
-        sf::Image *image;
-        sf::Texture *texture;
         std::vector< std::vector<uint8_t> > pixels;
 
         sf::Vector2u getDims()
@@ -49,18 +47,6 @@ private:
                 std::cout << std::dec << std::endl;
             }
         }
-
-        ShapeFrame()
-        {
-            image = new sf::Image;
-            texture = new sf::Texture;
-        }
-
-        ~ShapeFrame()
-        {
-            delete image;
-            delete texture;
-        }
     };
 
     int m_Size;
@@ -71,8 +57,8 @@ public:
     Shape(std::vector<uint8_t> record);
     ~Shape();
 
-    std::vector<sf::Sprite*> toSprites(Palette tpal, int transparency_index = 0xff);
     int getFrameCount() { return int(m_Frames.size());}
+    sf::Image *toImage(int frame_index, Palette &pal);
 
     void show();
     void showFrame(int frame);
