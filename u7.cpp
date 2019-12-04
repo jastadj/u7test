@@ -133,6 +133,27 @@ int U7::init()
         std::cout << m_Chunks.size() << " chunks loaded.\n";
     }
 
+    // load faces
+    std::cout << "Loading faces...\n";
+    FLXFile faces;
+    if(!faces.open(std::string(U7_DIR) + "/STATIC/FACES.VGA"))
+    {
+        std::cout << "Error loading FACES.VGA.\n";
+        exit(5);
+    }
+    else
+    {
+        for(int i = 0; i < faces.getRecordCount(); i++)
+        {
+            std::vector<uint8_t> record = faces.getRecord(i);
+            if(!record.empty())
+            {
+                Shape *newshape = new Shape(record);
+                m_Faces.push_back(newshape);
+            }
+        }
+    }
+
     initialized = true;
 
     // start main loop
@@ -165,6 +186,7 @@ int U7::mainLoop()
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
                 else if(event.key.code == sf::Keyboard::F2) showTiles();
                 else if(event.key.code == sf::Keyboard::F3) showChunks();
+                else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
             }
 
         }
@@ -279,22 +301,21 @@ void U7::showPalettes()
     }
 }
 
-void U7::showShape(Shape *tshape)
+void U7::showShapes(std::vector<Shape*> shapes)
 {
-    if(!tshape) return;
+    if(shapes.empty()) return;
     bool quit = false;
-    static float shape_scalar = 1.0;
+    static float scalar = 1.0;
     const float max_scale = 8.0;
-    int cur_index = 0;
-    int prev_index = -1;
+    int cur_shape = 0;
+    int prev_shape = -1;
+    int cur_frame = 0;
+    int prev_frame = -1;
     int cur_pal = 0;
     int prev_pal = -1;
-    int frame_count = tshape->getFrameCount();
-    sf::Texture *texture = new sf::Texture;
-    sf::Image *image = new sf::Image;
-    sf::Sprite *sprite = new sf::Sprite;
 
-    if(!frame_count) return;
+    sf::Texture *texture = new sf::Texture;
+    sf::Sprite *sprite = new sf::Sprite;
 
     while(!quit)
     {
@@ -302,17 +323,26 @@ void U7::showShape(Shape *tshape)
 
         sf::Event event;
 
-        // if palette is changed, update sprites
-        if( (cur_pal != prev_pal) || (cur_index != prev_index) )
+        // shape changed
+        if(prev_shape != cur_shape)
         {
-            if(image) delete image;
-            image = tshape->toImage(cur_index, m_Palettes[cur_pal] );
-            texture->loadFromImage(*image);
+            cur_frame = 0;
+            prev_frame = -1;
+            prev_shape = cur_shape;
+        }
+
+        // frame or palette change - generate new sprite
+        if(prev_frame != cur_frame || prev_pal != cur_pal)
+        {
             if(sprite) delete sprite;
+            sf::Image *img = shapes[cur_shape]->toImage(cur_frame, m_Palettes[cur_pal]);
+            texture->loadFromImage(*img);
             sprite = new sf::Sprite(*texture);
+            delete img;
+            prev_frame = cur_frame;
             prev_pal = cur_pal;
-            prev_index = cur_index;
-            std::cout << "Frame:" << cur_index << ", pal:" << cur_pal << std::endl;
+            std::cout << "shape (in list):" << cur_shape << " frame: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_frame;
+            std::cout << std::dec << " pal:" << cur_pal << std::endl;
         }
 
         while(m_Screen->pollEvent(event))
@@ -323,23 +353,23 @@ void U7::showShape(Shape *tshape)
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::Left)
                 {
-                    cur_index--;
-                    if(cur_index < 0) cur_index = frame_count-1;
+                    cur_frame--;
+                    if(cur_frame < 0) cur_frame = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Right)
                 {
-                    cur_index++;
-                    if(cur_index >= frame_count) cur_index = 0;
+                    cur_frame++;
+                    if(cur_frame >= shapes[cur_shape]->getFrameCount()) cur_frame = shapes[cur_shape]->getFrameCount()-1;
                 }
                 else if(event.key.code == sf::Keyboard::Add)
                 {
-                    shape_scalar += 1.0;
-                    if(shape_scalar > max_scale) shape_scalar = max_scale;
+                    scalar += 1.0;
+                    if(scalar > max_scale) scalar = max_scale;
                 }
                 else if(event.key.code == sf::Keyboard::Subtract)
                 {
-                    shape_scalar -= 1.0;
-                    if(shape_scalar < 1.0) shape_scalar = 1.0;
+                    scalar -= 1.0;
+                    if(scalar < 1.0) scalar = 1.0;
                 }
                 else if(event.key.code == sf::Keyboard::Up)
                 {
@@ -351,12 +381,26 @@ void U7::showShape(Shape *tshape)
                     cur_pal++;
                     if(cur_pal >= int(m_Palettes.size())) cur_pal = 0;
                 }
+                else if(event.key.code == sf::Keyboard::PageUp)
+                {
+                    cur_shape++;
+                    if(cur_shape >= int(shapes.size())) cur_shape = int(shapes.size()-1);
+                }
+                else if(event.key.code == sf::Keyboard::PageDown)
+                {
+                    cur_shape--;
+                    if(cur_shape < 0) cur_shape = 0;
+                }
+                else if(event.key.code == sf::Keyboard::Space)
+                {
+                    shapes[cur_shape]->showFrame(cur_frame);
+                }
             }
         }
 
         if(sprite)
         {
-            sprite->setScale(shape_scalar, shape_scalar);
+            sprite->setScale(scalar, scalar);
             sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
             m_Screen->draw(*sprite);
         }
@@ -368,7 +412,6 @@ void U7::showShape(Shape *tshape)
     // cleanup
     if(sprite) delete sprite;
     if(texture) delete texture;
-    if(image) delete image;
 }
 
 void U7::showTiles()

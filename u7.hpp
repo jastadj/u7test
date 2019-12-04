@@ -26,16 +26,13 @@ private:
     std::vector<Font*> m_Fonts;
     std::vector<TileSet*> m_TileSets;
     std::vector<Chunk> m_Chunks;
-
-
-
-
+    std::vector<Shape*> m_Faces;
 
     int mainLoop();
 
     // test
     void showPalettes();
-    void showShape(Shape *tshape);
+    void showShapes(std::vector<Shape*> shapes);
     void showTiles();
     void showChunks();
 
