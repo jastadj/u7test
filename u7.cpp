@@ -102,10 +102,8 @@ int U7::init()
     for(int i = 0x96; i < shapes.getRecordCount(); i++)
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
-        std::cout << "object " << m_Objects.size() + 1 << " size = " << trecord.size() << std::endl;
         if(trecord.empty()) continue;
         m_Objects.push_back( new Shape(trecord));
-        std::cout << "objects loaded:" << m_Objects.size() << std::endl;
     }
 
     // load chunks

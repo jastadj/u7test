@@ -33,7 +33,6 @@ Shape::Shape(std::vector<uint8_t> record)
         newframe->max_y    = int16_t( int(record[offset+6]) + ( int(record[offset+6+1]) << 8) );
         span_offset = offset+8;
 
-        std::cout << "new frame dims:" << newframe->getDims().x << "x" << newframe->getDims().y << " for frame " << i << "/" << count << std::endl;
         // initialize pixel array (0xff is transparent)
         newframe->pixels.resize(newframe->getDims().y);
         for(int n = 0; n < int(newframe->pixels.size()); n++)
