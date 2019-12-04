@@ -25,8 +25,6 @@ private:
     std::vector<Palette> m_Palettes;
     std::vector<Font*> m_Fonts;
     std::vector<TileSet*> m_TileSets;
-    std::vector<Tile*> m_Tiles;
-    std::vector<sf::Sprite*> m_TileSprites;
     std::vector<Chunk> m_Chunks;
 
 
