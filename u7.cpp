@@ -97,6 +97,17 @@ int U7::init()
     }
     std::cout << tile_count << " tiles loaded.\n";
 
+    // world objects
+    std::cout << "Loading shapes...\n";
+    for(int i = 0x96; i < shapes.getRecordCount(); i++)
+    {
+        std::vector<uint8_t> trecord = shapes.getRecord(i);
+        std::cout << "object " << m_Objects.size() + 1 << " size = " << trecord.size() << std::endl;
+        if(trecord.empty()) continue;
+        m_Objects.push_back( new Shape(trecord));
+        std::cout << "objects loaded:" << m_Objects.size() << std::endl;
+    }
+
     // load chunks
     std::cout << "Loading chunks...\n";
     chunkfile.open( std::string( std::string(U7_DIR) + "/STATIC/U7CHUNKS").c_str(), std::ios::binary | std::ios::in);

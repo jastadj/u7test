@@ -27,6 +27,7 @@ private:
     std::vector<TileSet*> m_TileSets;
     std::vector<Chunk> m_Chunks;
     std::vector<Shape*> m_Faces;
+    std::vector<Shape*> m_Objects;
 
     int mainLoop();
 

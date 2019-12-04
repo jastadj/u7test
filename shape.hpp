@@ -19,10 +19,10 @@ private:
     {
         int offset;
 
-        uint16_t max_x;
-        uint16_t max_y;
-        uint16_t offset_x;
-        uint16_t offset_y;
+        int16_t max_x;
+        int16_t max_y;
+        int16_t offset_x;
+        int16_t offset_y;
 
         std::vector< std::vector<uint8_t> > pixels;
 
