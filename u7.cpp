@@ -19,6 +19,7 @@ U7::~U7()
 int U7::init()
 {
     static bool initialized = false;
+    std::ifstream chunkfile;
     if(initialized) {std::cout << "U7 is already initialized!\n"; return 1;}
 
     std::cout << "Initializing...\n";
@@ -30,7 +31,7 @@ int U7::init()
     m_Screen->display();
 
     // load palettes
-    std::cout << "Initializing palettes...\n";
+    std::cout << "Loading palettes...\n";
     FLXFile paletteflx;
     if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/PALETTES.FLX")) std::cout << "Error opening palettes.flx" << std::endl;
     else
@@ -57,7 +58,7 @@ int U7::init()
     }
 
     // load fonts
-    std::cout << "Initializing fonts...\n";
+    std::cout << "Loading fonts...\n";
     FLXFile fontflx;
     if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) std::cout << "Error opening FONTS.VGA" << std::endl;
     else
@@ -76,19 +77,65 @@ int U7::init()
         std::cout << m_Fonts.size() << " fonts loaded.\n";
     }
 
-    // load shapes (tiles and objects)
-    std::cout << "Initializing tiles/shapes...\n";
+    // the shapes.vga file contains both tiles and shapes for world
     FLXFile shapes;
-    if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA")) std::cout << "Error opening SHAPES.VGA" << std::endl;
+    if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA"))
+    {
+        std::cout << "Error opening SHAPES.VGA" << std::endl;
+        return 1;
+    }
+
+    // tiles (records 0x00 - 0x95)
+    std::cout << "Loading tiles...\n";
+    for(int i = 0; i <= 0x95; i++)
+    {
+        std::vector<uint8_t> trecord = shapes.getRecord(i);
+        m_TileSets.push_back( new TileSet(trecord, &m_Palettes[0]));
+
+        // copy tile references to master tile list and generate master tile list sprites
+        std::vector<Tile*> ttiles = m_TileSets.back()->getTiles();
+        for(int n = 0; n < int(ttiles.size()); n++)
+        {
+            m_Tiles.push_back(ttiles[n]);
+            m_TileSprites.push_back(ttiles[n]->getSprite());
+        }
+    }
+    std::cout << m_Tiles.size() << " tiles loaded, " << m_TileSprites.size() << " tile sprites created.\n";
+
+    // load chunks
+    std::cout << "Loading chunks...\n";
+    chunkfile.open( std::string( std::string(U7_DIR) + "/STATIC/U7CHUNKS").c_str(), std::ios::binary | std::ios::in);
+    if(!chunkfile.is_open())
+    {
+        std::cout << "Error opening u7chunks.\n";
+        return 3;
+    }
     else
     {
-        // tiles (records 0x00 - 0x95)
-        for(int i = 0; i <= 0x95; i++)
-        {
-            std::vector<uint8_t> trecord = shapes.getRecord(i);
-            m_TileSets.push_back( new TileSet(trecord, &m_Palettes[0]));
-        }
+        size_t cfile_len = 0;
+        int chunk_count = 0;
+        chunkfile.seekg(0, std::ios::end);
+        cfile_len = chunkfile.tellg();
+        chunkfile.seekg(0, std::ios::beg);
+        chunk_count = int(cfile_len/512);
+        //std::cout << "Chunk file size:" << cfile_len << ", chunks:" << chunk_count << std::endl;
 
+        for(int k = 0; k < chunk_count; k++)
+        {
+            // create new chunk
+            std::vector<uint8_t> cdata;
+            Chunk newchunk;
+            for(int i = 0; i < (CHUNK_SIZE*CHUNK_SIZE)*2; i++)
+            {
+                unsigned char c = chunkfile.get();
+                cdata.push_back( uint8_t(c));
+            }
+
+            newchunk.setData(cdata);
+            m_Chunks.push_back(newchunk);
+        }
+        chunkfile.close();
+        std::cout << m_Chunks.size() << " chunks loaded.\n";
     }
 
     initialized = true;
@@ -122,6 +169,7 @@ int U7::mainLoop()
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
                 else if(event.key.code == sf::Keyboard::F2) showTiles();
+                else if(event.key.code == sf::Keyboard::F3) showChunks();
             }
 
         }
@@ -335,12 +383,9 @@ void U7::showTiles()
     const float max_scalar = 8.0;
     int cur_tile = 0;
     int prev_tile = -1;
-    int cur_set = 0;
-    int prev_set = -1;
-    sf::Sprite *sprite = new sf::Sprite;
+    sf::Sprite *sprite = new sf::Sprite(*m_TileSprites[cur_tile]);
 
-    if(m_TileSets.empty()) return;
-    if(m_TileSets[0]->getTileCount() == 0) return;
+    if(m_TileSprites.empty()) return;
 
     while(!quit)
     {
@@ -348,22 +393,13 @@ void U7::showTiles()
 
         sf::Event event;
 
-        // update tile set
-        if(prev_set != cur_set)
-        {
-            if(sprite) {delete sprite; sprite = NULL;}
-            cur_tile = 0;
-            prev_tile = -1;
-            prev_set = cur_set;
-        }
-
         // update tile
         if(prev_tile != cur_tile)
         {
-            if(sprite) delete sprite;
-            sprite = m_TileSets[cur_set]->getSprite(cur_tile);
+            delete sprite;
+            sprite = new sf::Sprite(*m_TileSprites[cur_tile]);
             prev_tile = cur_tile;
-            std::cout << "tileset:" << cur_set << ", tile:" << cur_tile << std::endl;
+            std::cout << "Tile #" << cur_tile << " - 0x" << std::hex << std::setw(4) << std::setfill('0') << cur_tile << std::endl << std::dec;
         }
         while(m_Screen->pollEvent(event))
         {
@@ -374,12 +410,12 @@ void U7::showTiles()
                 else if(event.key.code == sf::Keyboard::Left)
                 {
                     cur_tile--;
-                    if(cur_tile < 0) cur_tile = m_TileSets[cur_set]->getTileCount()-1;
+                    if(cur_tile < 0) cur_tile = int(m_TileSprites.size()-1);
                 }
                 else if(event.key.code == sf::Keyboard::Right)
                 {
                     cur_tile++;
-                    if(cur_tile >= m_TileSets[cur_set]->getTileCount()) cur_tile = 0;
+                    if(cur_tile >= int(m_TileSprites.size())) cur_tile = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Add)
                 {
@@ -391,30 +427,102 @@ void U7::showTiles()
                     scalar -= 1.0;
                     if(scalar < 1.0) scalar = 1.0;
                 }
-                else if(event.key.code == sf::Keyboard::Up)
+                else if(event.key.code == sf::Keyboard::PageUp)
                 {
-                    cur_set--;
-                    if(cur_set < 0) cur_set = int(m_TileSets.size()-1);
+                    cur_tile += 0x10;
+                    if(cur_tile >= int(m_TileSprites.size())) cur_tile = int(m_TileSprites.size()-1);
                 }
-                else if(event.key.code == sf::Keyboard::Down)
+                else if(event.key.code == sf::Keyboard::PageDown)
                 {
-                    cur_set++;
-                    if(cur_set >= int(m_TileSets.size())) cur_set = 0;
+                    cur_tile -= 0x10;
+                    if(cur_tile < 0) cur_tile = 0;
                 }
             }
         }
 
-        if(sprite)
-        {
-            sprite->setScale(scalar, scalar);
-            sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
-            m_Screen->draw(*sprite);
-        }
+        sprite->setScale(scalar, scalar);
+        sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
+        m_Screen->draw(*sprite);
 
         m_Screen->display();
     }
 
     // cleanup
     if(sprite) delete sprite;
+
+}
+
+void U7::showChunks()
+{
+    bool quit = false;
+    int cur_chunk = 0;
+    int prev_chunk = -1;
+    int tile_sprites = int(m_TileSprites.size());
+
+    while(!quit)
+    {
+        m_Screen->clear();
+
+        sf::Event event;
+
+        if(cur_chunk != prev_chunk)
+        {
+            std::cout << "Chunk #" << cur_chunk << std::endl;
+            prev_chunk = cur_chunk;
+        }
+
+        while(m_Screen->pollEvent(event))
+        {
+            if(event.type == sf::Event::Closed) quit = true;
+            else if(event.type == sf::Event::KeyPressed)
+            {
+                if(event.key.code == sf::Keyboard::Escape) quit = true;
+                else if(event.key.code == sf::Keyboard::Left)
+                {
+                    cur_chunk--;
+                    if(cur_chunk < 0) cur_chunk = int(m_Chunks.size()-1);
+                }
+                else if(event.key.code == sf::Keyboard::Right)
+                {
+                    cur_chunk++;
+                    if(cur_chunk >= int(m_Chunks.size())) cur_chunk = 0;
+                }
+                else if(event.key.code == sf::Keyboard::Add)
+                {
+                }
+                else if(event.key.code == sf::Keyboard::Subtract)
+                {
+                }
+                else if(event.key.code == sf::Keyboard::Up)
+                {
+                }
+                else if(event.key.code == sf::Keyboard::Down)
+                {
+                }
+                else if(event.key.code == sf::Keyboard::Space)
+                {
+                    m_Chunks[cur_chunk].show();
+                }
+            }
+        }
+
+        // draw
+        for(int i = 0; i < CHUNK_SIZE; i++)
+        {
+            for(int n = 0; n < CHUNK_SIZE; n++)
+            {
+                int tile = m_Chunks[cur_chunk].tiles[i][n];
+                if(tile >= 0 && tile < tile_sprites )
+                {
+
+                    m_TileSprites[tile]->setPosition(sf::Vector2f(n*TILE_SIZE, i*TILE_SIZE));
+                    m_Screen->draw( *m_TileSprites[tile]);
+                }
+            }
+        }
+
+
+        m_Screen->display();
+    }
 
 }

@@ -42,5 +42,7 @@ public:
 
     int getTileCount() { return int(m_Tiles.size());}
     sf::Sprite *getSprite(int tileindex);
+
+    std::vector<Tile*> getTiles() { return m_Tiles;}
 };
 #endif // CLASS_TILE

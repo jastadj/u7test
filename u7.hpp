@@ -9,6 +9,7 @@
 #include "shape.hpp"
 #include "font.hpp"
 #include "tile.hpp"
+#include "chunk.hpp"
 
 #define U7_DIR "./u7"
 
@@ -24,6 +25,9 @@ private:
     std::vector<Palette> m_Palettes;
     std::vector<Font*> m_Fonts;
     std::vector<TileSet*> m_TileSets;
+    std::vector<Tile*> m_Tiles;
+    std::vector<sf::Sprite*> m_TileSprites;
+    std::vector<Chunk> m_Chunks;
 
 
 
@@ -35,6 +39,7 @@ private:
     void showPalettes();
     void showShape(Shape *tshape);
     void showTiles();
+    void showChunks();
 
 public:
     static U7 *getInstance()
