@@ -80,14 +80,14 @@ Shape::Shape(std::vector<uint8_t> record)
                     // read run length of raw pixels
                     if(is_raw)
                     {
-                        for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n] = record[span_offset+n];
+                        for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n+block_offset] = record[span_offset+n];
                         span_offset += run_len;
                     }
                     // or repeat byte for run length
                     else
                     {
-                        for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n] = record[span_offset];
-                        span_offset ++;
+                        for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n+block_offset] = record[span_offset];
+                        span_offset++;
                     }
                     block_offset += run_len;
                 }
