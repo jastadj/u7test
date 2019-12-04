@@ -196,6 +196,7 @@ int U7::mainLoop()
                 else if(event.key.code == sf::Keyboard::F2) showTiles();
                 else if(event.key.code == sf::Keyboard::F3) showChunks();
                 else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
+                else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects);
             }
 
         }
