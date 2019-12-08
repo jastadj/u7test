@@ -323,12 +323,19 @@ void U7::showShapes(std::vector<Shape*> shapes)
     int prev_pal = -1;
     std::vector<sf::Texture*> textures;
     sf::Vector2f framesize;
+    sf::Font font;
+    sf::Text infotext;
+
+    font.loadFromFile("font.ttf");
+    infotext = sf::Text("",font,12);
 
     while(!quit)
     {
         m_Screen->clear();
 
         sf::Event event;
+        std::stringstream iss;
+        sf::Vector2f mouse_pos_f = sf::Vector2f(sf::Mouse::getPosition(*m_Screen));
 
         // shape or pal changed
         if(prev_shape != cur_shape || prev_pal != cur_pal)
@@ -337,6 +344,7 @@ void U7::showShapes(std::vector<Shape*> shapes)
             for(int i = 0; i < int(textures.size()); i++) delete textures[i];
             textures.clear();
 
+            // create new textures
             for(int i = 0; i < int(shapes[cur_shape]->getFrameCount()); i++)
             {
                 sf::Image *img = shapes[cur_shape]->toImage(i, m_Palettes[cur_pal]);
@@ -346,7 +354,10 @@ void U7::showShapes(std::vector<Shape*> shapes)
                 textures.push_back(texture);
             }
 
+            // get largest frame size in current shape
             framesize = sf::Vector2f( shapes[cur_shape]->getLargestFrameDim() );
+
+            // update previous pal/shape
             prev_pal = cur_pal;
             prev_shape = cur_shape;
         }
@@ -359,12 +370,14 @@ void U7::showShapes(std::vector<Shape*> shapes)
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::Left)
                 {
-                    cur_shape--;
+                    if(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) cur_shape -= 0x10;
+                    else cur_shape--;
                     if(cur_shape < 0) cur_shape = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Right)
                 {
-                    cur_shape++;
+                    if(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) cur_shape += 0x10;
+                    else cur_shape++;
                     if(cur_shape >= int(shapes.size()) ) cur_shape = int(shapes.size()-1);
                 }
                 else if(event.key.code == sf::Keyboard::Add)
@@ -394,32 +407,51 @@ void U7::showShapes(std::vector<Shape*> shapes)
             }
         }
 
+        // info text
+        iss << std::hex << std::setw(4) << std::setfill('0') << "shape: 0x" << cur_shape << "/0x" << shapes.size()-1;
+
+        // draw frame sprite and border
         if(cur_shape == prev_shape)
         {
+            int frames_in_row = (m_Screen->getSize().y/( (framesize.x+2)*scalar))+1;
+
             for(int i = 0; i < shapes[cur_shape]->getFrameCount(); i++)
             {
+                sf::FloatRect trect(sf::Vector2f(1 + ((i%frames_in_row)*scalar)*framesize.x + ((i%frames_in_row)*scalar)*2,
+                                                 1 + ((i/frames_in_row)*scalar)*framesize.y + ((i/frames_in_row)*scalar)*2),
+                                    sf::Vector2f((framesize + sf::Vector2f(2,2))*scalar));
+
                 // draw frame border
-                sf::Vector2f tpos( (i%8)*scalar,(i/8)*scalar);
-                sf::RectangleShape rshape( (framesize + sf::Vector2f(2,2))*scalar );
+                sf::RectangleShape rshape( sf::Vector2f(trect.width, trect.height));
                 rshape.setFillColor(sf::Color::Transparent);
                 rshape.setOutlineThickness(1);
                 rshape.setOutlineColor(sf::Color::Red);
-                rshape.setPosition(1+tpos.x*framesize.x+tpos.x*2,1+tpos.y*framesize.y+tpos.y*2);
+                rshape.setPosition(trect.left, trect.top);
                 m_Screen->draw(rshape);
 
                 // create and draw sprites
                 if(framesize.x > 0 && framesize.y > 0)
                 {
                     sf::Sprite *sprite = new sf::Sprite(*textures[i]);
-                    sprite->setPosition(rshape.getPosition());
+                    sprite->setPosition(sf::Vector2f(trect.left, trect.top));
                     sprite->setScale(scalar,scalar);
                     m_Screen->draw(*sprite);
                     delete sprite;
                 }
 
+                // if mouse is over this frame
+                if(trect.contains(mouse_pos_f))
+                {
+                    iss << " frame: 0x" << std::hex << std::setw(2) << std::setfill('0') << i << "/0x" << shapes[cur_shape]->getFrameCount()-1;
+                }
+
             }
         }
 
+        // draw frame/sprite info
+        infotext.setString(iss.str());
+        infotext.setPosition(sf::Vector2f(5, m_Screen->getSize().y-15));
+        m_Screen->draw(infotext);
 
         m_Screen->display();
     }
