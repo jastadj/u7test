@@ -51,6 +51,8 @@ int U7::init()
                 int pdi = n*3;
                 newpal.colors.push_back( sf::Color( pdata[pdi]*4, pdata[pdi+1]*4, pdata[pdi+2]*4) );
             }
+            // color 0xff is always transparent
+            newpal.colors[255] = sf::Color::Transparent;
             m_Palettes.push_back(newpal);
 
         }
@@ -69,10 +71,9 @@ int U7::init()
             std::vector<uint8_t> trecord = fontflx.getRecord(i);
             if( int(trecord.size()) != 0)
             {
-                Shape *fshape = new Shape(trecord);
+                Shape *fshape = new Shape(trecord, m_Palettes);
                 Font *newfont = new Font(fshape);
                 m_Fonts.push_back( newfont );
-                m_Fonts.back()->addPalette(&m_Palettes[0]);
             }
         }
         std::cout << m_Fonts.size() << " fonts loaded.\n";
@@ -103,7 +104,7 @@ int U7::init()
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
         if(trecord.empty()) continue;
-        m_Objects.push_back( new Shape(trecord));
+        m_Objects.push_back( new Shape(trecord, m_Palettes));
     }
 
     // load chunks
@@ -157,7 +158,7 @@ int U7::init()
             std::vector<uint8_t> record = faces.getRecord(i);
             if(!record.empty())
             {
-                Shape *newshape = new Shape(record);
+                Shape *newshape = new Shape(record, m_Palettes);
                 m_Faces.push_back(newshape);
             }
         }
@@ -196,7 +197,7 @@ int U7::mainLoop()
                 else if(event.key.code == sf::Keyboard::F2) showTiles();
                 else if(event.key.code == sf::Keyboard::F3) showChunks();
                 else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
-                else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects);
+                else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects,true);
             }
 
         }
@@ -311,20 +312,20 @@ void U7::showPalettes()
     }
 }
 
-void U7::showShapes(std::vector<Shape*> shapes)
+void U7::showShapes(std::vector<Shape*> shapes, bool is_world_shape)
 {
     if(shapes.empty()) return;
     bool quit = false;
     static float scalar = 1.0;
     const float max_scalar = 8.0;
-    int cur_shape = 0;
+    static int cur_shape = 0;
     int prev_shape = -1;
     int cur_pal = 0;
     int prev_pal = -1;
-    std::vector<sf::Texture*> textures;
     sf::Vector2f framesize;
     sf::Font font;
     sf::Text infotext;
+    std::vector<sf::Sprite*> sprites;
 
     font.loadFromFile("font.ttf");
     infotext = sf::Text("",font,12);
@@ -340,20 +341,6 @@ void U7::showShapes(std::vector<Shape*> shapes)
         // shape or pal changed
         if(prev_shape != cur_shape || prev_pal != cur_pal)
         {
-            // delete all textures
-            for(int i = 0; i < int(textures.size()); i++) delete textures[i];
-            textures.clear();
-
-            // create new textures
-            for(int i = 0; i < int(shapes[cur_shape]->getFrameCount()); i++)
-            {
-                sf::Image *img = shapes[cur_shape]->toImage(i, m_Palettes[cur_pal]);
-                sf::Texture *texture = new sf::Texture;
-                texture->loadFromImage(*img);
-                delete img;
-                textures.push_back(texture);
-            }
-
             // get largest frame size in current shape
             framesize = sf::Vector2f( shapes[cur_shape]->getLargestFrameDim() );
 
@@ -408,7 +395,8 @@ void U7::showShapes(std::vector<Shape*> shapes)
         }
 
         // info text
-        iss << std::hex << std::setw(4) << std::setfill('0') << "shape: 0x" << cur_shape << "/0x" << shapes.size()-1;
+        iss << std::hex << std::setw(4) << std::setfill('0') << "shape: 0x" << cur_shape + ((is_world_shape)?0x96:0x00) << "/0x" << shapes.size()-1+((is_world_shape)?0x96:0x00);
+        iss << " pal:" << cur_pal;
 
         // draw frame sprite and border
         if(cur_shape == prev_shape)
@@ -429,15 +417,13 @@ void U7::showShapes(std::vector<Shape*> shapes)
                 rshape.setPosition(trect.left, trect.top);
                 m_Screen->draw(rshape);
 
-                // create and draw sprites
-                if(framesize.x > 0 && framesize.y > 0)
-                {
-                    sf::Sprite *sprite = new sf::Sprite(*textures[i]);
-                    sprite->setPosition(sf::Vector2f(trect.left, trect.top));
-                    sprite->setScale(scalar,scalar);
-                    m_Screen->draw(*sprite);
-                    delete sprite;
-                }
+                // draw sprite
+                sf::Sprite *tsprite = shapes[cur_shape]->createSprite(i, cur_pal, false);
+                //tsprite->setPosition(sf::Vector2f(trect.left + trect.width-(1*scalar), trect.top + trect.height-(1*scalar)) );
+                tsprite->setPosition(sf::Vector2f(trect.left, trect.top));
+                tsprite->setScale(sf::Vector2f(scalar, scalar));
+                m_Screen->draw(*tsprite);
+                delete tsprite;
 
                 // if mouse is over this frame
                 if(trect.contains(mouse_pos_f))
@@ -456,15 +442,6 @@ void U7::showShapes(std::vector<Shape*> shapes)
         m_Screen->display();
     }
 
-    // cleanup
-    if(!textures.empty())
-    {
-        for(int i = 0; i < int(textures.size()); i++)
-        {
-            delete textures[i];
-        }
-    }
-    textures.clear();
 }
 
 void U7::showTiles()
@@ -591,9 +568,9 @@ void U7::showTiles()
 void U7::showChunks()
 {
     bool quit = false;
-    int cur_chunk = 0;
+    static int cur_chunk = 0;
     int prev_chunk = -1;
-    float scalar = 1.0;
+    static float scalar = 1.0;
     float max_scalar = 8.0;
 
     sf::Font testfont;
@@ -618,6 +595,8 @@ void U7::showChunks()
         if(cur_chunk != prev_chunk)
         {
             rtxt->clear();
+
+            // draw ground tiles
             for(int y = 0; y < CHUNK_SIZE; y++)
             {
                 for(int x = 0; x < CHUNK_SIZE; x++)
@@ -626,19 +605,44 @@ void U7::showChunks()
                     int shape_id = 0x3ff & data;
                     int frame = (data & 0x7c00) >> 10;
 
+                    sf::Vector2f tpos(x*TILE_SIZE, y*TILE_SIZE);
+
                     // if this shape id is a tile
                     if(shape_id <= 0x95)
                     {
                         sf::Sprite *tsprite = m_TileSets[shape_id]->getSprite(frame);
                         if(tsprite)
                         {
-                            tsprite->setPosition( sf::Vector2f(x*TILE_SIZE, y*TILE_SIZE) );
+                            tsprite->setPosition( tpos );
                             rtxt->draw(*tsprite);
                             delete tsprite;
                         }
                     }
                 }
             }
+
+            // draw objects
+            for(int y = 0; y < CHUNK_SIZE; y++)
+            {
+                for(int x = 0; x < CHUNK_SIZE; x++)
+                {
+                    int data = m_Chunks[cur_chunk].tiles[y][x];
+                    int shape_id = 0x3ff & data;
+                    int frame = (data & 0x7c00) >> 10;
+
+                    sf::Vector2f tpos(x*TILE_SIZE, y*TILE_SIZE);
+
+                    // if this shape id is a tile
+                    if(shape_id >= 0x96)
+                    {
+                        sf::Sprite *tsprite = m_Objects[shape_id - 0x96]->createSprite(frame, 0);
+                        tsprite->setPosition(tpos + sf::Vector2f(7,7));
+                        rtxt->draw(*tsprite);
+                        delete tsprite;
+                    }
+                }
+            }
+
             // update render texture and create new sprite from it
             rtxt->display();
             delete chunksprite;

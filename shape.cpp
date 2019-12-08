@@ -2,7 +2,7 @@
 
 
 
-Shape::Shape(std::vector<uint8_t> record)
+Shape::Shape(std::vector<uint8_t> record, std::vector<Palette> &pals)
 {
     int count = 0;
     m_Size = 0;
@@ -14,6 +14,9 @@ Shape::Shape(std::vector<uint8_t> record)
     // since the first offset starts right after the offset list,
     // determine how many offsets there are total
     count = (count - 4) / 4;
+
+    // initialize texture array for each palette
+    m_Textures.resize(pals.size());
 
     // read in frame data and create frame image
     for(int i = 0; i < count; i++)
@@ -99,6 +102,16 @@ Shape::Shape(std::vector<uint8_t> record)
 
         // for optimization later, make this a vector of pointers
         m_Frames.push_back(newframe);
+
+        // create texture for each palette
+        for(int p = 0; p < int(pals.size()); p++)
+        {
+            sf::Image *image = toImage(i, pals[p]);
+            sf::Texture *texture = new sf::Texture;
+            texture->loadFromImage(*image);
+            m_Textures[p].push_back(texture);
+            delete image;
+        }
     }
 
 
@@ -107,10 +120,22 @@ Shape::Shape(std::vector<uint8_t> record)
 
 Shape::~Shape()
 {
+    // delete frames
     for(int i = 0; i < int(m_Frames.size()); i++)
     {
         delete m_Frames[i];
     }
+
+    // delete textures
+    for(int i = 0; i < int(m_Textures.size()); i++)
+    {
+        for(int n = 0; n < int(m_Textures[i].size()); n++)
+        {
+            delete m_Textures[i][n];
+        }
+        m_Textures[i].clear();
+    }
+    m_Textures.clear();
 }
 
 sf::Image *Shape::toImage(int frame_index, Palette &pal)
@@ -147,6 +172,18 @@ sf::Vector2u Shape::getLargestFrameDim()
     }
 
     return largest_dim;
+}
+
+sf::Sprite *Shape::createSprite(int frame, int pal, bool apply_offsets)
+{
+    sf::Sprite *tsprite = NULL;
+    if(frame < 0 || frame >= int(m_Frames.size())) return NULL;
+    if(pal < 0 || pal >= int(m_Textures.size())) return NULL;
+
+    tsprite = new sf::Sprite(*m_Textures[pal][frame]);
+    if(apply_offsets) tsprite->setOrigin(sf::Vector2f(m_Frames[frame]->offset_x, m_Frames[frame]->offset_y));
+
+    return tsprite;
 }
 
 void Shape::show()

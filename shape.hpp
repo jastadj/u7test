@@ -51,15 +51,17 @@ private:
 
     int m_Size;
     std::vector<ShapeFrame*> m_Frames;
-
+    std::vector< std::vector<sf::Texture*> > m_Textures; // 2d array of textures, 1st dimension is palette
+    sf::Image *toImage(int frame_index, Palette &pal);
 
 public:
-    Shape(std::vector<uint8_t> record);
+    Shape(std::vector<uint8_t> record, std::vector<Palette> &pals);
     ~Shape();
 
     int getFrameCount() { return int(m_Frames.size());}
-    sf::Image *toImage(int frame_index, Palette &pal);
     sf::Vector2u getLargestFrameDim();
+
+    sf::Sprite *createSprite(int frame, int pal, bool apply_offsets=true);
 
     void show();
     void showFrame(int frame);

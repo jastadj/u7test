@@ -46,6 +46,8 @@
 		<Unit filename="font.cpp" />
 		<Unit filename="font.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="map.cpp" />
+		<Unit filename="map.hpp" />
 		<Unit filename="palette.hpp" />
 		<Unit filename="shape.cpp" />
 		<Unit filename="shape.hpp" />
