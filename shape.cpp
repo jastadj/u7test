@@ -135,6 +135,20 @@ sf::Image *Shape::toImage(int frame_index, Palette &pal)
     return img;
 }
 
+sf::Vector2u Shape::getLargestFrameDim()
+{
+    sf::Vector2u largest_dim;
+
+    for(int i = 0; i < int(m_Frames.size()); i++)
+    {
+        sf::Vector2u fdim = m_Frames[i]->getDims();
+        if(fdim.x > largest_dim.x) largest_dim.x = fdim.x;
+        if(fdim.y > largest_dim.y) largest_dim.y = fdim.y;
+    }
+
+    return largest_dim;
+}
+
 void Shape::show()
 {
     std::cout << "shape size:" << std::dec << m_Size << std::endl;

@@ -59,6 +59,7 @@ public:
 
     int getFrameCount() { return int(m_Frames.size());}
     sf::Image *toImage(int frame_index, Palette &pal);
+    sf::Vector2u getLargestFrameDim();
 
     void show();
     void showFrame(int frame);

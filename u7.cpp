@@ -316,16 +316,13 @@ void U7::showShapes(std::vector<Shape*> shapes)
     if(shapes.empty()) return;
     bool quit = false;
     static float scalar = 1.0;
-    const float max_scale = 8.0;
+    const float max_scalar = 8.0;
     int cur_shape = 0;
     int prev_shape = -1;
-    int cur_frame = 0;
-    int prev_frame = -1;
     int cur_pal = 0;
     int prev_pal = -1;
-
-    sf::Texture *texture = new sf::Texture;
-    sf::Sprite *sprite = new sf::Sprite;
+    std::vector<sf::Texture*> textures;
+    sf::Vector2f framesize;
 
     while(!quit)
     {
@@ -333,26 +330,25 @@ void U7::showShapes(std::vector<Shape*> shapes)
 
         sf::Event event;
 
-        // shape changed
-        if(prev_shape != cur_shape)
+        // shape or pal changed
+        if(prev_shape != cur_shape || prev_pal != cur_pal)
         {
-            cur_frame = 0;
-            prev_frame = -1;
-            prev_shape = cur_shape;
-        }
+            // delete all textures
+            for(int i = 0; i < int(textures.size()); i++) delete textures[i];
+            textures.clear();
 
-        // frame or palette change - generate new sprite
-        if(prev_frame != cur_frame || prev_pal != cur_pal)
-        {
-            if(sprite) delete sprite;
-            sf::Image *img = shapes[cur_shape]->toImage(cur_frame, m_Palettes[cur_pal]);
-            texture->loadFromImage(*img);
-            sprite = new sf::Sprite(*texture);
-            delete img;
-            prev_frame = cur_frame;
+            for(int i = 0; i < int(shapes[cur_shape]->getFrameCount()); i++)
+            {
+                sf::Image *img = shapes[cur_shape]->toImage(i, m_Palettes[cur_pal]);
+                sf::Texture *texture = new sf::Texture;
+                texture->loadFromImage(*img);
+                delete img;
+                textures.push_back(texture);
+            }
+
+            framesize = sf::Vector2f( shapes[cur_shape]->getLargestFrameDim() );
             prev_pal = cur_pal;
-            std::cout << "shape (in list):" << cur_shape << " frame: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_frame;
-            std::cout << std::dec << " pal:" << cur_pal << std::endl;
+            prev_shape = cur_shape;
         }
 
         while(m_Screen->pollEvent(event))
@@ -363,18 +359,18 @@ void U7::showShapes(std::vector<Shape*> shapes)
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::Left)
                 {
-                    cur_frame--;
-                    if(cur_frame < 0) cur_frame = 0;
+                    cur_shape--;
+                    if(cur_shape < 0) cur_shape = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Right)
                 {
-                    cur_frame++;
-                    if(cur_frame >= shapes[cur_shape]->getFrameCount()) cur_frame = shapes[cur_shape]->getFrameCount()-1;
+                    cur_shape++;
+                    if(cur_shape >= int(shapes.size()) ) cur_shape = int(shapes.size()-1);
                 }
                 else if(event.key.code == sf::Keyboard::Add)
                 {
                     scalar += 1.0;
-                    if(scalar > max_scale) scalar = max_scale;
+                    if(scalar > max_scalar) scalar = max_scalar;
                 }
                 else if(event.key.code == sf::Keyboard::Subtract)
                 {
@@ -391,28 +387,37 @@ void U7::showShapes(std::vector<Shape*> shapes)
                     cur_pal++;
                     if(cur_pal >= int(m_Palettes.size())) cur_pal = 0;
                 }
-                else if(event.key.code == sf::Keyboard::PageUp)
-                {
-                    cur_shape++;
-                    if(cur_shape >= int(shapes.size())) cur_shape = int(shapes.size()-1);
-                }
-                else if(event.key.code == sf::Keyboard::PageDown)
-                {
-                    cur_shape--;
-                    if(cur_shape < 0) cur_shape = 0;
-                }
                 else if(event.key.code == sf::Keyboard::Space)
                 {
-                    shapes[cur_shape]->showFrame(cur_frame);
+                    shapes[cur_shape]->show();
                 }
             }
         }
 
-        if(sprite)
+        if(cur_shape == prev_shape)
         {
-            sprite->setScale(scalar, scalar);
-            sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
-            m_Screen->draw(*sprite);
+            for(int i = 0; i < shapes[cur_shape]->getFrameCount(); i++)
+            {
+                // draw frame border
+                sf::Vector2f tpos( (i%8)*scalar,(i/8)*scalar);
+                sf::RectangleShape rshape( (framesize + sf::Vector2f(2,2))*scalar );
+                rshape.setFillColor(sf::Color::Transparent);
+                rshape.setOutlineThickness(1);
+                rshape.setOutlineColor(sf::Color::Red);
+                rshape.setPosition(1+tpos.x*framesize.x+tpos.x*2,1+tpos.y*framesize.y+tpos.y*2);
+                m_Screen->draw(rshape);
+
+                // create and draw sprites
+                if(framesize.x > 0 && framesize.y > 0)
+                {
+                    sf::Sprite *sprite = new sf::Sprite(*textures[i]);
+                    sprite->setPosition(rshape.getPosition());
+                    sprite->setScale(scalar,scalar);
+                    m_Screen->draw(*sprite);
+                    delete sprite;
+                }
+
+            }
         }
 
 
@@ -420,44 +425,60 @@ void U7::showShapes(std::vector<Shape*> shapes)
     }
 
     // cleanup
-    if(sprite) delete sprite;
-    if(texture) delete texture;
+    if(!textures.empty())
+    {
+        for(int i = 0; i < int(textures.size()); i++)
+        {
+            delete textures[i];
+        }
+    }
+    textures.clear();
 }
 
 void U7::showTiles()
 {
     bool quit = false;
-    static float scalar = 1.0;
-    const float max_scalar = 8.0;
-    int cur_tile = 0;
-    int prev_tile = -1;
-    int cur_set = 0;
-    int prev_set = -1;
-    sf::Sprite *sprite = NULL;
+    static int cur_set = 0;
+    static int prev_set = -1;
+    static float scalar = 2.0f;
+    const float max_scalar = 8.0f;
+    static int spacing = 1;
+    sf::Font tfont;
+    tfont.loadFromFile("font.ttf");
+    sf::Text tileinfo("", tfont, 12);
+
+    std::vector<sf::Sprite*> sprites;
 
     while(!quit)
     {
         m_Screen->clear();
 
         sf::Event event;
+        sf::Vector2f mouse_pos_f = sf::Vector2f(sf::Mouse::getPosition(*m_Screen));
+        int mouse_over_tile = -1;
 
-        // update tile set
+        // update set
         if(prev_set != cur_set)
         {
-            cur_tile = 0;
-            prev_tile = -1;
+            int tilecount = m_TileSets[cur_set]->getTileCount();
+
+            // delete current tile sprites
+            for(int i = 0; i < int(sprites.size()); i++)
+            {
+                delete sprites[i];
+            }
+            sprites.clear();
+
+            // generate current tile set sprites
+            for(int i = 0; i < tilecount; i++)
+            {
+                sprites.push_back(m_TileSets[cur_set]->getSprite(i));
+            }
+
+            std::cout << "Tile set: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_TileSets.size()-1 << std::dec << " (" << cur_set << "/" << m_TileSets.size() << ")\n";
             prev_set = cur_set;
         }
 
-        // update tile
-        if(prev_tile != cur_tile)
-        {
-            if(sprite) delete sprite;
-            sprite = m_TileSets[cur_set]->getSprite(cur_tile);
-            prev_tile = cur_tile;
-            std::cout << "Tile set: 0x" << std::hex << std::setw(9) << std::setfill('0') << cur_set;
-            std::cout << " - tile: 0x" << std::setw(2) << std::setfill('0') << cur_tile << std::dec << std::endl;
-        }
 
         while(m_Screen->pollEvent(event))
         {
@@ -467,46 +488,71 @@ void U7::showTiles()
                 if(event.key.code == sf::Keyboard::Escape) quit = true;
                 else if(event.key.code == sf::Keyboard::Left)
                 {
-                    cur_tile--;
-                    if(cur_tile < 0) cur_tile = 0;
+                    cur_set--;
+                    if(cur_set < 0) cur_set = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Right)
                 {
-                    cur_tile++;
-                    if(cur_tile >= int(m_TileSets[cur_set]->getTileCount())) cur_tile = int(m_TileSets[cur_set]->getTileCount()-1);
+                    cur_set++;
+                    if(cur_set >= int(m_TileSets.size()) ) cur_set = int(m_TileSets.size()-1);
                 }
                 else if(event.key.code == sf::Keyboard::Add)
                 {
-                    scalar += 1.0;
+                    scalar += 1.0f;
                     if(scalar > max_scalar) scalar = max_scalar;
                 }
                 else if(event.key.code == sf::Keyboard::Subtract)
                 {
-                    scalar -= 1.0;
-                    if(scalar < 1.0) scalar = 1.0;
+                    scalar -= 1.0f;
+                    if(scalar < 1.0f) scalar = 1.0f;
+                }
+                else if(event.key.code == sf::Keyboard::Up)
+                {
+                    spacing++;
+                }
+                else if(event.key.code == sf::Keyboard::Down)
+                {
+                    spacing--;
+                    if(spacing < 0) spacing = 0;
                 }
                 else if(event.key.code == sf::Keyboard::PageUp)
                 {
-                    cur_set++;
-                    if(cur_set >= int(m_TileSets.size())) cur_set = int(m_TileSets.size()-1);
+
                 }
                 else if(event.key.code == sf::Keyboard::PageDown)
                 {
-                    cur_set--;
-                    if(cur_set < 0) cur_set = 0;
+
                 }
             }
         }
 
-        sprite->setScale(scalar, scalar);
-        sprite->setPosition(m_Screen->getSize().x/2, m_Screen->getSize().y/2);
-        m_Screen->draw(*sprite);
+        // draw tiles
+        for(int i = 0; i < int(sprites.size());i++)
+        {
+            sf::FloatRect trect( sf::Vector2f( ((i%TILE_SIZE)*TILE_SIZE),((i/TILE_SIZE)*TILE_SIZE) )*(scalar*(spacing+1)), sf::Vector2f(TILE_SIZE*scalar,TILE_SIZE*scalar));
+            sprites[i]->setPosition( sf::Vector2f(trect.left, trect.top));
+            sprites[i]->setScale(sf::Vector2f(scalar,scalar));
+            m_Screen->draw(*sprites[i]);
 
+            if(trect.contains(mouse_pos_f)) mouse_over_tile = i;
+        }
+
+        // draw info
+        std::stringstream tiss;
+        tiss << "Tile set: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_TileSets.size()-1 << std::dec << " (" << cur_set << "/" << m_TileSets.size()-1 << ")";
+        if(mouse_over_tile != -1)
+        {
+            tiss << "  Tile: 0x" << std::hex << std::setw(2) << std::setfill('0') << mouse_over_tile << "/" << m_TileSets[cur_set]->getTileCount()-1;
+            tiss << std::dec << " (" << mouse_over_tile << "/" << m_TileSets[cur_set]->getTileCount()-1 << ")";
+        }
+        tileinfo.setString(tiss.str());
+        tileinfo.setPosition( sf::Vector2f(5,m_Screen->getSize().y - 15));
+
+        m_Screen->draw(tileinfo);
+
+        // display
         m_Screen->display();
     }
-
-    // cleanup
-    if(sprite) delete sprite;
 
 }
 
@@ -617,12 +663,13 @@ void U7::showChunks()
         {
             //chunksprite->setOrigin(sf::Vector2f(TILE_SIZE*CHUNK_SIZE/2, TILE_SIZE*CHUNK_SIZE/2));
             //chunksprite->setPosition(sf::Vector2f(m_Screen->getSize().x/2, m_Screen->getSize().y/2));
+            chunksprite->setScale(scalar,scalar);
             m_Screen->draw(*chunksprite);
         }
 
         // update/draw debug info
         sf::Vector2i mouse_pos(sf::Mouse::getPosition(*m_Screen));
-        sf::Vector2i tile_pos(mouse_pos.x/TILE_SIZE, mouse_pos.y/TILE_SIZE);
+        sf::Vector2i tile_pos( (mouse_pos.x/scalar)/TILE_SIZE, (mouse_pos.y/scalar)/TILE_SIZE);
         if(tile_pos.x >= 0 && tile_pos.x < CHUNK_SIZE && tile_pos.y >= 0 && tile_pos.y < CHUNK_SIZE)
         {
             int chunkdata = m_Chunks[cur_chunk].tiles[tile_pos.y][tile_pos.x];
