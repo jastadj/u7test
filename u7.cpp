@@ -164,6 +164,14 @@ int U7::init()
         }
     }
 
+    // load map
+    std::cout << "Loading map...\n";
+    m_CurrentMap = new U7Map(std::string(U7_DIR) + "/STATIC/U7MAP");
+
+    // initialize player
+    std::cout << "Initializing player...\n";
+    m_Player = new Player();
+
     initialized = true;
 
     // start main loop
@@ -203,13 +211,30 @@ int U7::mainLoop()
         }
 
         // draw
-
+        drawChunk(0,0);
 
         // display
         m_Screen->display();
     }
 
     return 0;
+}
+
+void U7::drawChunk(int x, int y)
+{
+    int rx = x / REGION_SIZE;
+    int ry = y / REGION_SIZE;
+    x = x - (rx * REGION_SIZE);
+    y = y - (ry * REGION_SIZE);
+
+    Chunk *tchunk = &m_Chunks[m_CurrentMap->getChunkID(rx, ry, x, y)];
+    for(int i = 0; i < CHUNK_SIZE; i++)
+    {
+        for(int n = 0; n < CHUNK_SIZE; n++)
+        {
+
+        }
+    }
 }
 
 void U7::showPalettes()
@@ -380,12 +405,12 @@ void U7::showShapes(std::vector<Shape*> shapes, bool is_world_shape)
                 else if(event.key.code == sf::Keyboard::Up)
                 {
                     cur_pal--;
-                    if(cur_pal < 0) cur_pal = int(m_Palettes.size()-1);
+                    if(cur_pal < 0) cur_pal = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Down)
                 {
                     cur_pal++;
-                    if(cur_pal >= int(m_Palettes.size())) cur_pal = 0;
+                    if(cur_pal >= shapes[cur_shape]->getPaletteCount()) cur_pal = shapes[cur_shape]->getPaletteCount()-1;
                 }
                 else if(event.key.code == sf::Keyboard::Space)
                 {

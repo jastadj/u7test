@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <vector>
 #include <iostream>
+#include <iomanip>
 
 #define CHUNK_SIZE 16
 

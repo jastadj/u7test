@@ -10,6 +10,8 @@
 #include "font.hpp"
 #include "tile.hpp"
 #include "chunk.hpp"
+#include "map.hpp"
+#include "player.hpp"
 
 #define U7_DIR "./u7"
 
@@ -29,7 +31,11 @@ private:
     std::vector<Shape*> m_Faces;
     std::vector<Shape*> m_Objects;
 
+    U7Map *m_CurrentMap;
+    Player *m_Player;
+
     int mainLoop();
+    void drawChunk(int x, int y);
 
     // test
     void showPalettes();

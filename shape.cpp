@@ -16,7 +16,9 @@ Shape::Shape(std::vector<uint8_t> record, std::vector<Palette> &pals)
     count = (count - 4) / 4;
 
     // initialize texture array for each palette
-    m_Textures.resize(pals.size());
+    //m_Textures.resize(pals.size());
+    // only initialize texture array for first palette
+    m_Textures.resize(1);
 
     // read in frame data and create frame image
     for(int i = 0; i < count; i++)
@@ -104,7 +106,9 @@ Shape::Shape(std::vector<uint8_t> record, std::vector<Palette> &pals)
         m_Frames.push_back(newframe);
 
         // create texture for each palette
-        for(int p = 0; p < int(pals.size()); p++)
+        //for(int p = 0; p < int(pals.size()); p++)
+        // crate texture for first palette
+        for(int p = 0; p < 1; p++)
         {
             sf::Image *image = toImage(i, pals[p]);
             sf::Texture *texture = new sf::Texture;
@@ -112,6 +116,7 @@ Shape::Shape(std::vector<uint8_t> record, std::vector<Palette> &pals)
             m_Textures[p].push_back(texture);
             delete image;
         }
+
     }
 
 

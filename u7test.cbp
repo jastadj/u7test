@@ -49,6 +49,8 @@
 		<Unit filename="map.cpp" />
 		<Unit filename="map.hpp" />
 		<Unit filename="palette.hpp" />
+		<Unit filename="player.cpp" />
+		<Unit filename="player.hpp" />
 		<Unit filename="shape.cpp" />
 		<Unit filename="shape.hpp" />
 		<Unit filename="tile.cpp" />
