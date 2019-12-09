@@ -62,7 +62,7 @@ public:
     int getPaletteCount() { return int(m_Textures.size());}
     sf::Vector2u getLargestFrameDim();
 
-    sf::Sprite *createSprite(int frame, int pal, bool apply_offsets=true);
+    sf::Sprite *createSprite(int frame, int pal = 0, bool apply_offsets=true);
 
     void show();
     void showFrame(int frame);

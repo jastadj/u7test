@@ -23,6 +23,7 @@ private:
     static U7 *m_Instance;
 
     sf::RenderWindow *m_Screen;
+    sf::View m_View;
 
     std::vector<Palette> m_Palettes;
     std::vector<Font*> m_Fonts;

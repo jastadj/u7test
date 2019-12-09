@@ -185,10 +185,18 @@ int U7::mainLoop()
 {
     bool quit = false;
 
+
+
     while(!quit)
     {
         // clear screen
         m_Screen->clear();
+        m_Screen->setView(m_View);
+        m_View.setSize(sf::Vector2f(m_Screen->getSize()) );
+        m_View.setCenter(m_Player->getPosition());
+        m_View.zoom(0.5);
+
+
 
         // event queue
         sf::Event event;
@@ -206,12 +214,32 @@ int U7::mainLoop()
                 else if(event.key.code == sf::Keyboard::F3) showChunks();
                 else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
                 else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects,true);
+                else if(event.key.code == sf::Keyboard::Left) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(-CHUNK_SIZE*TILE_SIZE, 0));
+                else if(event.key.code == sf::Keyboard::Right) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(CHUNK_SIZE*TILE_SIZE, 0));
+                else if(event.key.code == sf::Keyboard::Up) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(0,-CHUNK_SIZE*TILE_SIZE));
+                else if(event.key.code == sf::Keyboard::Down) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(0,CHUNK_SIZE*TILE_SIZE));
             }
 
         }
 
+        sf::IntRect chunks_rect( sf::Vector2i(m_Screen->mapPixelToCoords(sf::Vector2i(0,0))), sf::Vector2i(m_Screen->mapPixelToCoords( sf::Vector2i(m_Screen->getSize()) ) ) );
+        sf::Vector2i testpixel = sf::Vector2i(m_Screen->mapPixelToCoords(sf::Vector2i(0,0)));
+        testpixel.x = testpixel.x / (TILE_SIZE*CHUNK_SIZE);
+        testpixel.y = testpixel.y / (TILE_SIZE*CHUNK_SIZE);
+        chunks_rect.left = chunks_rect.left / (TILE_SIZE*CHUNK_SIZE);
+        chunks_rect.top = chunks_rect.top / (TILE_SIZE*CHUNK_SIZE);
+        chunks_rect.width = chunks_rect.width / (TILE_SIZE*CHUNK_SIZE);
+        chunks_rect.height = chunks_rect.height / (TILE_SIZE*CHUNK_SIZE);
+        //std::cout << chunks_rect.left << "," << chunks_rect.top << " - " << chunks_rect.left + chunks_rect.width << "," << chunks_rect.top + chunks_rect.height << std::endl;
+
         // draw
-        drawChunk(0,0);
+        for(int i = chunks_rect.top; i < chunks_rect.top +4; i++)
+        {
+            for(int n = chunks_rect.left; n < chunks_rect.left + 4; n++)
+            {
+                if(i >= 0 && n >= 0) drawChunk(n,i);
+            }
+        }
 
         // display
         m_Screen->display();
@@ -227,12 +255,37 @@ void U7::drawChunk(int x, int y)
     x = x - (rx * REGION_SIZE);
     y = y - (ry * REGION_SIZE);
 
+    //std::cout << "draw chunk for region:" << rx << "," << ry << " - chunk:" << x << "," << y << std::endl;
+
     Chunk *tchunk = &m_Chunks[m_CurrentMap->getChunkID(rx, ry, x, y)];
+
     for(int i = 0; i < CHUNK_SIZE; i++)
     {
         for(int n = 0; n < CHUNK_SIZE; n++)
         {
+            int chunkdata = tchunk->tiles[i][n];
+            int shapeid = chunkdata & 0x3ff;
+            int frame = (chunkdata & 0x7c00) >> 10;
+            if(shapeid > 0x95) continue;
+            sf::Sprite *tsprite = m_TileSets[shapeid]->getSprite( frame);
+            tsprite->setPosition( sf::Vector2f( (rx*REGION_SIZE*CHUNK_SIZE*TILE_SIZE)+(x*CHUNK_SIZE*TILE_SIZE) + (n*TILE_SIZE), (ry*REGION_SIZE*CHUNK_SIZE*TILE_SIZE)+(y*CHUNK_SIZE*TILE_SIZE) + (i*TILE_SIZE)) );
+            m_Screen->draw(*tsprite);
+            delete tsprite;
+        }
+    }
 
+    for(int i = 0; i < CHUNK_SIZE; i++)
+    {
+        for(int n = 0; n < CHUNK_SIZE; n++)
+        {
+            int chunkdata = tchunk->tiles[i][n];
+            int shapeid = chunkdata & 0x3ff;
+            int frame = (chunkdata & 0x7c00) >> 10;
+            if(shapeid < 0x96) continue;
+            sf::Sprite *tsprite = m_Objects[shapeid - 0x96]->createSprite(frame);
+            tsprite->setPosition( sf::Vector2f( (rx*REGION_SIZE*CHUNK_SIZE*TILE_SIZE)+(x*CHUNK_SIZE*TILE_SIZE) + (n*TILE_SIZE), (ry*REGION_SIZE*CHUNK_SIZE*TILE_SIZE)+(y*CHUNK_SIZE*TILE_SIZE) + (i*TILE_SIZE)) + sf::Vector2f(7,7) );
+            m_Screen->draw(*tsprite);
+            delete tsprite;
         }
     }
 }
@@ -252,6 +305,7 @@ void U7::showPalettes()
     while(!quit)
     {
         m_Screen->clear();
+        m_Screen->setView(m_Screen->getDefaultView());
         sf::Event event;
 
         // if needs init
@@ -358,6 +412,7 @@ void U7::showShapes(std::vector<Shape*> shapes, bool is_world_shape)
     while(!quit)
     {
         m_Screen->clear();
+        m_Screen->setView(m_Screen->getDefaultView());
 
         sf::Event event;
         std::stringstream iss;
@@ -486,6 +541,7 @@ void U7::showTiles()
     while(!quit)
     {
         m_Screen->clear();
+        m_Screen->setView(m_Screen->getDefaultView());
 
         sf::Event event;
         sf::Vector2f mouse_pos_f = sf::Vector2f(sf::Mouse::getPosition(*m_Screen));
@@ -613,7 +669,7 @@ void U7::showChunks()
     while(!quit)
     {
         m_Screen->clear();
-
+        m_Screen->setView(m_Screen->getDefaultView());
         sf::Event event;
 
         // if current chunk has changed, update the rendertexture/sprite

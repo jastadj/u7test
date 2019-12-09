@@ -42,7 +42,7 @@ int U7Map::getChunkID(int regionx, int regiony, int x, int y)
     if(y < 0 || y >= int(m_Regions[regiony][regionx].chunk_ids.size())) {std::cout << "Error getting map chunk id, chunk y(" << y << ") out of bounds!\n";return 0;}
     if(x < 0 || x >= int(m_Regions[regiony][regionx].chunk_ids[y].size())) {std::cout << "Error getting map chunk id, chunk x(" << x << ") out of bounds!\n";return 0;}
 
-    return 0;
+    return m_Regions[regiony][regionx].chunk_ids[y][x];
 }
 
 void U7Map::show()
