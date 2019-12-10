@@ -12,6 +12,7 @@
 #include "chunk.hpp"
 #include "map.hpp"
 #include "player.hpp"
+#include "face.hpp"
 
 #define U7_DIR "./u7"
 
@@ -27,14 +28,15 @@ private:
 
     std::vector<Palette> m_Palettes;
     std::vector<Font*> m_Fonts;
-    std::vector<TileSet*> m_TileSets;
+    std::vector<Tile*> m_Tiles;
     std::vector<Chunk> m_Chunks;
-    std::vector<Shape*> m_Faces;
-    std::vector<Shape*> m_Objects;
+    std::vector<Face*> m_Faces;
+    std::vector<WorldObject*> m_Objects;
 
     U7Map *m_CurrentMap;
     Player *m_Player;
 
+    int init();
     int mainLoop();
     void drawChunk(int x, int y);
 
@@ -51,6 +53,6 @@ public:
         return m_Instance;
     }
 
-    int init();
+    void start();
 };
 #endif // CLASS_U7

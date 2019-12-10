@@ -41,13 +41,17 @@
 			<Add directory="../../SFML-2.5.1/lib" />
 		</Linker>
 		<Unit filename="chunk.hpp" />
+		<Unit filename="face.hpp" />
 		<Unit filename="flx.cpp" />
 		<Unit filename="flx.hpp" />
 		<Unit filename="font.cpp" />
 		<Unit filename="font.hpp" />
+		<Unit filename="frame.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="map.cpp" />
 		<Unit filename="map.hpp" />
+		<Unit filename="object.cpp" />
+		<Unit filename="object.hpp" />
 		<Unit filename="palette.hpp" />
 		<Unit filename="player.cpp" />
 		<Unit filename="player.hpp" />

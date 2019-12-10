@@ -179,6 +179,20 @@ sf::Vector2u Shape::getLargestFrameDim()
     return largest_dim;
 }
 
+sf::Vector2i Shape::getFrameOffset(int frameindex)
+{
+    sf::Vector2i offset;
+    if(frameindex < 0 || frameindex >= int(m_Frames.size()))
+    {
+        std::cout << "Error getting frame offset from shape at frame index " << frameindex << ", out of bounds.\n";
+        return offset;
+    }
+
+    offset.x = m_Frames[frameindex]->offset_x;
+    offset.y = m_Frames[frameindex]->offset_y;
+    return offset;
+}
+
 sf::Sprite *Shape::createSprite(int frame, int pal, bool apply_offsets)
 {
     sf::Sprite *tsprite = NULL;

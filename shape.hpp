@@ -49,20 +49,22 @@ private:
         }
     };
 
-    int m_Size;
-    std::vector<ShapeFrame*> m_Frames;
-    std::vector< std::vector<sf::Texture*> > m_Textures; // 2d array of textures, 1st dimension is palette
-    sf::Image *toImage(int frame_index, Palette &pal);
-
 public:
     Shape(std::vector<uint8_t> record, std::vector<Palette> &pals);
     ~Shape();
 
+    int m_Size;
     int getFrameCount() { return int(m_Frames.size());}
     int getPaletteCount() { return int(m_Textures.size());}
+    sf::Vector2i getFrameOffset(int frameindex);
     sf::Vector2u getLargestFrameDim();
 
+    sf::Image *toImage(int frame_index, Palette &pal);
     sf::Sprite *createSprite(int frame, int pal = 0, bool apply_offsets=true);
+
+    std::vector<ShapeFrame*> m_Frames;
+    std::vector< std::vector<sf::Texture*> > m_Textures; // 2d array of textures, 1st dimension is palette
+
 
     void show();
     void showFrame(int frame);

@@ -17,6 +17,20 @@ U7::~U7()
 
 }
 
+void U7::start()
+{
+    if(init()!= 0)
+    {
+        std::cout << "Error initializing.\n";
+        return;
+    }
+
+    // start main loop
+    std::cout << "Starting main loop...\n";
+    mainLoop();
+
+}
+
 int U7::init()
 {
     static bool initialized = false;
@@ -31,10 +45,20 @@ int U7::init()
     m_Screen->clear();
     m_Screen->display();
 
+    // load text
+    std::cout << "Loading text data...\n";
+    FLXFile textflx;
+    if(!textflx.open( std::string(U7_DIR) + "/STATIC/TEXT.FLX")) {std::cout << "Error loading text.flx!\n"; return 1;}
+
+    // load weight and volume
+    std::cout << "Loading weight and volume data...\n";
+    FLXFile wgtvolflx;
+    if(!wgtvolflx.open( std::string(U7_DIR) + "/STATIC/WGTVOL.DAT")) {std::cout << "Error loading wgtvol.flx!\n"; return 1;}
+
     // load palettes
     std::cout << "Loading palettes...\n";
     FLXFile paletteflx;
-    if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/PALETTES.FLX")) std::cout << "Error opening palettes.flx" << std::endl;
+    if(!paletteflx.open( std::string(U7_DIR) + "/STATIC/PALETTES.FLX")) {std::cout << "Error opening palettes.flx" << std::endl; return 1;}
     else
     {
         for(int i = 0; i < paletteflx.getRecordCount(); i++)
@@ -63,7 +87,7 @@ int U7::init()
     // load fonts
     std::cout << "Loading fonts...\n";
     FLXFile fontflx;
-    if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) std::cout << "Error opening FONTS.VGA" << std::endl;
+    if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) {std::cout << "Error opening FONTS.VGA" << std::endl; return 1;}
     else
     {
         for(int i = 0; i < fontflx.getRecordCount(); i++)
@@ -71,9 +95,9 @@ int U7::init()
             std::vector<uint8_t> trecord = fontflx.getRecord(i);
             if( int(trecord.size()) != 0)
             {
-                Shape *fshape = new Shape(trecord, m_Palettes);
-                Font *newfont = new Font(fshape);
+                Font *newfont = new Font(trecord, m_Palettes);
                 m_Fonts.push_back( newfont );
+
             }
         }
         std::cout << m_Fonts.size() << " fonts loaded.\n";
@@ -81,11 +105,7 @@ int U7::init()
 
     // the shapes.vga file contains both tiles and shapes for world
     FLXFile shapes;
-    if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA"))
-    {
-        std::cout << "Error opening SHAPES.VGA" << std::endl;
-        return 1;
-    }
+    if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA")) {std::cout << "Error opening SHAPES.VGA" << std::endl; return 1;}
 
     // tiles (records 0x00 - 0x95)
     std::cout << "Loading tiles...\n";
@@ -93,28 +113,33 @@ int U7::init()
     for(int i = 0; i <= 0x95; i++)
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
-        m_TileSets.push_back( new TileSet(trecord, &m_Palettes[0]));
-        tile_count += m_TileSets.back()->getTileCount();
+        std::vector<uint8_t> textrecord = textflx.getRecord(i);
+        std::string tilename;
+        for(int k = 0; k < int(textrecord.size()); k++)
+        {
+            if(textrecord[k] == 0) continue;
+            tilename.push_back(char(textrecord[k]));
+        }
+        m_Tiles.push_back( new Tile(tilename, trecord, m_Palettes));
+        tile_count += m_Tiles.back()->getFrameCount();
     }
     std::cout << tile_count << " tiles loaded.\n";
 
     // world objects
-    std::cout << "Loading shapes...\n";
+    std::cout << "Loading objects...\n";
+    int obj_count = 0;
     for(int i = 0x96; i < shapes.getRecordCount(); i++)
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
         if(trecord.empty()) continue;
-        m_Objects.push_back( new Shape(trecord, m_Palettes));
+        //m_Objects.push_back( new Shape(trecord, m_Palettes));
     }
+    std::cout << obj_count << " objects loaded.\n";
 
     // load chunks
     std::cout << "Loading chunks...\n";
     chunkfile.open( std::string( std::string(U7_DIR) + "/STATIC/U7CHUNKS").c_str(), std::ios::binary | std::ios::in);
-    if(!chunkfile.is_open())
-    {
-        std::cout << "Error opening u7chunks.\n";
-        return 3;
-    }
+    if(!chunkfile.is_open()) {std::cout << "Error opening u7chunks.\n"; return 1;}
     else
     {
         size_t cfile_len = 0;
@@ -146,11 +171,7 @@ int U7::init()
     // load faces
     std::cout << "Loading faces...\n";
     FLXFile faces;
-    if(!faces.open(std::string(U7_DIR) + "/STATIC/FACES.VGA"))
-    {
-        std::cout << "Error loading FACES.VGA.\n";
-        exit(5);
-    }
+    if(!faces.open(std::string(U7_DIR) + "/STATIC/FACES.VGA")) {std::cout << "Error loading FACES.VGA.\n"; return 1;}
     else
     {
         for(int i = 0; i < faces.getRecordCount(); i++)
@@ -159,7 +180,13 @@ int U7::init()
             if(!record.empty())
             {
                 Shape *newshape = new Shape(record, m_Palettes);
-                m_Faces.push_back(newshape);
+                Face *newface = new Face;
+                for(int k = 0; k < int(newshape->m_Textures[0].size()); k++)
+                {
+                    newface->m_Frames.push_back(new Frame(newshape->m_Textures[0][k]));
+                }
+                m_Faces.push_back(newface);
+                delete newshape;
             }
         }
     }
@@ -174,18 +201,12 @@ int U7::init()
 
     initialized = true;
 
-    // start main loop
-    std::cout << "Starting main loop...\n";
-    mainLoop();
-
     return 0;
 }
 
 int U7::mainLoop()
 {
     bool quit = false;
-
-
 
     while(!quit)
     {
@@ -194,7 +215,7 @@ int U7::mainLoop()
         m_Screen->setView(m_View);
         m_View.setSize(sf::Vector2f(m_Screen->getSize()) );
         m_View.setCenter(m_Player->getPosition());
-        m_View.zoom(0.5);
+        //m_View.zoom(0.5);
 
 
 
@@ -212,8 +233,8 @@ int U7::mainLoop()
                 else if(event.key.code == sf::Keyboard::F1) showPalettes();
                 else if(event.key.code == sf::Keyboard::F2) showTiles();
                 else if(event.key.code == sf::Keyboard::F3) showChunks();
-                else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
-                else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects,true);
+                //else if(event.key.code == sf::Keyboard::F5) showShapes(m_Faces);
+                //else if(event.key.code == sf::Keyboard::F6) showShapes(m_Objects,true);
                 else if(event.key.code == sf::Keyboard::Left) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(-CHUNK_SIZE*TILE_SIZE, 0));
                 else if(event.key.code == sf::Keyboard::Right) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(CHUNK_SIZE*TILE_SIZE, 0));
                 else if(event.key.code == sf::Keyboard::Up) m_Player->setPosition(m_Player->getPosition() + sf::Vector2f(0,-CHUNK_SIZE*TILE_SIZE));
@@ -250,6 +271,7 @@ int U7::mainLoop()
 
 void U7::drawChunk(int x, int y)
 {
+    return;
     int rx = x / REGION_SIZE;
     int ry = y / REGION_SIZE;
     x = x - (rx * REGION_SIZE);
@@ -258,7 +280,7 @@ void U7::drawChunk(int x, int y)
     //std::cout << "draw chunk for region:" << rx << "," << ry << " - chunk:" << x << "," << y << std::endl;
 
     Chunk *tchunk = &m_Chunks[m_CurrentMap->getChunkID(rx, ry, x, y)];
-
+/*
     for(int i = 0; i < CHUNK_SIZE; i++)
     {
         for(int n = 0; n < CHUNK_SIZE; n++)
@@ -288,6 +310,7 @@ void U7::drawChunk(int x, int y)
             delete tsprite;
         }
     }
+    */
 }
 
 void U7::showPalettes()
@@ -550,7 +573,7 @@ void U7::showTiles()
         // update set
         if(prev_set != cur_set)
         {
-            int tilecount = m_TileSets[cur_set]->getTileCount();
+            int tilecount = m_Tiles[cur_set]->getFrameCount();
 
             // delete current tile sprites
             for(int i = 0; i < int(sprites.size()); i++)
@@ -562,10 +585,10 @@ void U7::showTiles()
             // generate current tile set sprites
             for(int i = 0; i < tilecount; i++)
             {
-                sprites.push_back(m_TileSets[cur_set]->getSprite(i));
+                sprites.push_back(m_Tiles[cur_set]->newFrameSprite(i));
             }
 
-            std::cout << "Tile set: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_TileSets.size()-1 << std::dec << " (" << cur_set << "/" << m_TileSets.size() << ")\n";
+            //std::cout << "Tile set: \"" << m_TileSets[cur_set]->getName() << "\" 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_TileSets.size()-1 << std::dec << " (" << cur_set << "/" << m_TileSets.size() << ")\n";
             prev_set = cur_set;
         }
 
@@ -584,7 +607,7 @@ void U7::showTiles()
                 else if(event.key.code == sf::Keyboard::Right)
                 {
                     cur_set++;
-                    if(cur_set >= int(m_TileSets.size()) ) cur_set = int(m_TileSets.size()-1);
+                    if(cur_set >= int(m_Tiles.size()) ) cur_set = int(m_Tiles.size()-1);
                 }
                 else if(event.key.code == sf::Keyboard::Add)
                 {
@@ -629,11 +652,11 @@ void U7::showTiles()
 
         // draw info
         std::stringstream tiss;
-        tiss << "Tile set: 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_TileSets.size()-1 << std::dec << " (" << cur_set << "/" << m_TileSets.size()-1 << ")";
+        tiss << "Tile : \"" << m_Tiles[cur_set]->getName() << "\" 0x" << std::hex << std::setw(2) << std::setfill('0') << cur_set << "/0x" << m_Tiles.size()-1 << std::dec << " (" << cur_set << "/" << m_Tiles.size()-1 << ")";
         if(mouse_over_tile != -1)
         {
-            tiss << "  Tile: 0x" << std::hex << std::setw(2) << std::setfill('0') << mouse_over_tile << "/" << m_TileSets[cur_set]->getTileCount()-1;
-            tiss << std::dec << " (" << mouse_over_tile << "/" << m_TileSets[cur_set]->getTileCount()-1 << ")";
+            tiss << "  Tile: 0x" << std::hex << std::setw(2) << std::setfill('0') << mouse_over_tile << "/" << m_Tiles[cur_set]->getFrameCount()-1;
+            tiss << std::dec << " (" << mouse_over_tile << "/" << m_Tiles[cur_set]->getFrameCount()-1 << ")";
         }
         tileinfo.setString(tiss.str());
         tileinfo.setPosition( sf::Vector2f(5,m_Screen->getSize().y - 15));
@@ -691,7 +714,7 @@ void U7::showChunks()
                     // if this shape id is a tile
                     if(shape_id <= 0x95)
                     {
-                        sf::Sprite *tsprite = m_TileSets[shape_id]->getSprite(frame);
+                        sf::Sprite *tsprite = m_Tiles[shape_id]->newFrameSprite(frame);
                         if(tsprite)
                         {
                             tsprite->setPosition( tpos );
@@ -716,10 +739,10 @@ void U7::showChunks()
                     // if this shape id is a tile
                     if(shape_id >= 0x96)
                     {
-                        sf::Sprite *tsprite = m_Objects[shape_id - 0x96]->createSprite(frame, 0);
-                        tsprite->setPosition(tpos + sf::Vector2f(7,7));
-                        rtxt->draw(*tsprite);
-                        delete tsprite;
+                        //sf::Sprite *tsprite = m_Objects[shape_id - 0x96]->createSprite(frame, 0);
+                        //tsprite->setPosition(tpos + sf::Vector2f(7,7));
+                        //rtxt->draw(*tsprite);
+                        //delete tsprite;
                     }
                 }
             }
