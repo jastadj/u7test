@@ -6,10 +6,9 @@ Font::Font(std::vector<uint8_t> record, std::vector<Palette> &pal)
 {
     Shape *newshape = new Shape(record, pal);
 
-    for(int i = 0; i < int(newshape->m_Textures[0].size()); i++)
+    for(int i = 0; i < int(newshape->m_Images.size()); i++)
     {
-        sf::Vector2f offset(newshape->getFrameOffset(i));
-        m_Frames.push_back( new Frame(newshape->m_Textures[0][i], offset));
+        m_Frames.push_back( new Frame(&newshape->m_Images[i], newshape->m_Offsets[i]));
     }
 
     delete newshape;

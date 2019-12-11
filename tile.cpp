@@ -9,7 +9,6 @@ Tile::Tile(std::string tname, std::vector<uint8_t> record, std::vector<Palette> 
     for(int i = 0; i < tilecount; i++)
     {
         sf::Image image;
-        sf::Texture *texture;
         int record_offset = i*TILE_BLOCK_SIZE;
 
         image.create(TILE_SIZE, TILE_SIZE);
@@ -23,11 +22,7 @@ Tile::Tile(std::string tname, std::vector<uint8_t> record, std::vector<Palette> 
             }
         }
 
-        texture = new sf::Texture;
-        texture->loadFromImage(image);
-        m_Frames.push_back(new Frame(texture));
-
-        delete texture;
+        m_Frames.push_back(new Frame(&image));
 
     }
 }

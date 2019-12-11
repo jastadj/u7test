@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include "frame.hpp"
+#include "palette.hpp"
+#include "shape.hpp"
 
 class Object
 {
@@ -37,7 +39,7 @@ class WorldObject:public Object
 protected:
 
 public:
-    WorldObject(std::string name);
+    WorldObject(std::string name, std::vector<uint8_t> record, std::vector<Palette> &pal);
     ~WorldObject();
 
     void show();

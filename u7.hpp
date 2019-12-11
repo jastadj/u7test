@@ -42,7 +42,6 @@ private:
 
     // test
     void showPalettes();
-    void showShapes(std::vector<Shape*> shapes, bool is_world_shape=false);
     void showTiles();
     void showChunks();
 

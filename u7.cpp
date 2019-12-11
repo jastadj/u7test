@@ -85,7 +85,7 @@ int U7::init()
     }
 
     // load fonts
-    std::cout << "Loading fonts...\n";
+    std::cout << "Loading fonts (need to import from sf::image for better speed)...\n";
     FLXFile fontflx;
     if(!fontflx.open( std::string(U7_DIR) + "/STATIC/FONTS.VGA")) {std::cout << "Error opening FONTS.VGA" << std::endl; return 1;}
     else
@@ -131,8 +131,15 @@ int U7::init()
     for(int i = 0x96; i < shapes.getRecordCount(); i++)
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
+        std::vector<uint8_t> textrecord = textflx.getRecord(i);
+        std::string objname;
+        for(int k = 0; k < int(textrecord.size()); k++)
+        {
+            objname.push_back(char(textrecord[k]));
+        }
         if(trecord.empty()) continue;
-        //m_Objects.push_back( new Shape(trecord, m_Palettes));
+        m_Objects.push_back( new WorldObject(objname, trecord, m_Palettes));
+        obj_count++;
     }
     std::cout << obj_count << " objects loaded.\n";
 
@@ -181,9 +188,9 @@ int U7::init()
             {
                 Shape *newshape = new Shape(record, m_Palettes);
                 Face *newface = new Face;
-                for(int k = 0; k < int(newshape->m_Textures[0].size()); k++)
+                for(int k = 0; k < int(newshape->m_Images.size()); k++)
                 {
-                    newface->m_Frames.push_back(new Frame(newshape->m_Textures[0][k]));
+                    newface->m_Frames.push_back(new Frame(&newshape->m_Images[k]));
                 }
                 m_Faces.push_back(newface);
                 delete newshape;
@@ -412,139 +419,6 @@ void U7::showPalettes()
         m_Screen->display();
 
     }
-}
-
-void U7::showShapes(std::vector<Shape*> shapes, bool is_world_shape)
-{
-    if(shapes.empty()) return;
-    bool quit = false;
-    static float scalar = 1.0;
-    const float max_scalar = 8.0;
-    static int cur_shape = 0;
-    int prev_shape = -1;
-    int cur_pal = 0;
-    int prev_pal = -1;
-    sf::Vector2f framesize;
-    sf::Font font;
-    sf::Text infotext;
-    std::vector<sf::Sprite*> sprites;
-
-    font.loadFromFile("font.ttf");
-    infotext = sf::Text("",font,12);
-
-    while(!quit)
-    {
-        m_Screen->clear();
-        m_Screen->setView(m_Screen->getDefaultView());
-
-        sf::Event event;
-        std::stringstream iss;
-        sf::Vector2f mouse_pos_f = sf::Vector2f(sf::Mouse::getPosition(*m_Screen));
-
-        // shape or pal changed
-        if(prev_shape != cur_shape || prev_pal != cur_pal)
-        {
-            // get largest frame size in current shape
-            framesize = sf::Vector2f( shapes[cur_shape]->getLargestFrameDim() );
-
-            // update previous pal/shape
-            prev_pal = cur_pal;
-            prev_shape = cur_shape;
-        }
-
-        while(m_Screen->pollEvent(event))
-        {
-            if(event.type == sf::Event::Closed) quit = true;
-            else if(event.type == sf::Event::KeyPressed)
-            {
-                if(event.key.code == sf::Keyboard::Escape) quit = true;
-                else if(event.key.code == sf::Keyboard::Left)
-                {
-                    if(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) cur_shape -= 0x10;
-                    else cur_shape--;
-                    if(cur_shape < 0) cur_shape = 0;
-                }
-                else if(event.key.code == sf::Keyboard::Right)
-                {
-                    if(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) cur_shape += 0x10;
-                    else cur_shape++;
-                    if(cur_shape >= int(shapes.size()) ) cur_shape = int(shapes.size()-1);
-                }
-                else if(event.key.code == sf::Keyboard::Add)
-                {
-                    scalar += 1.0;
-                    if(scalar > max_scalar) scalar = max_scalar;
-                }
-                else if(event.key.code == sf::Keyboard::Subtract)
-                {
-                    scalar -= 1.0;
-                    if(scalar < 1.0) scalar = 1.0;
-                }
-                else if(event.key.code == sf::Keyboard::Up)
-                {
-                    cur_pal--;
-                    if(cur_pal < 0) cur_pal = 0;
-                }
-                else if(event.key.code == sf::Keyboard::Down)
-                {
-                    cur_pal++;
-                    if(cur_pal >= shapes[cur_shape]->getPaletteCount()) cur_pal = shapes[cur_shape]->getPaletteCount()-1;
-                }
-                else if(event.key.code == sf::Keyboard::Space)
-                {
-                    shapes[cur_shape]->show();
-                }
-            }
-        }
-
-        // info text
-        iss << std::hex << std::setw(4) << std::setfill('0') << "shape: 0x" << cur_shape + ((is_world_shape)?0x96:0x00) << "/0x" << shapes.size()-1+((is_world_shape)?0x96:0x00);
-        iss << " pal:" << cur_pal;
-
-        // draw frame sprite and border
-        if(cur_shape == prev_shape)
-        {
-            int frames_in_row = (m_Screen->getSize().y/( (framesize.x+2)*scalar))+1;
-
-            for(int i = 0; i < shapes[cur_shape]->getFrameCount(); i++)
-            {
-                sf::FloatRect trect(sf::Vector2f(1 + ((i%frames_in_row)*scalar)*framesize.x + ((i%frames_in_row)*scalar)*2,
-                                                 1 + ((i/frames_in_row)*scalar)*framesize.y + ((i/frames_in_row)*scalar)*2),
-                                    sf::Vector2f((framesize + sf::Vector2f(2,2))*scalar));
-
-                // draw frame border
-                sf::RectangleShape rshape( sf::Vector2f(trect.width, trect.height));
-                rshape.setFillColor(sf::Color::Transparent);
-                rshape.setOutlineThickness(1);
-                rshape.setOutlineColor(sf::Color::Red);
-                rshape.setPosition(trect.left, trect.top);
-                m_Screen->draw(rshape);
-
-                // draw sprite
-                sf::Sprite *tsprite = shapes[cur_shape]->createSprite(i, cur_pal, false);
-                //tsprite->setPosition(sf::Vector2f(trect.left + trect.width-(1*scalar), trect.top + trect.height-(1*scalar)) );
-                tsprite->setPosition(sf::Vector2f(trect.left, trect.top));
-                tsprite->setScale(sf::Vector2f(scalar, scalar));
-                m_Screen->draw(*tsprite);
-                delete tsprite;
-
-                // if mouse is over this frame
-                if(trect.contains(mouse_pos_f))
-                {
-                    iss << " frame: 0x" << std::hex << std::setw(2) << std::setfill('0') << i << "/0x" << shapes[cur_shape]->getFrameCount()-1;
-                }
-
-            }
-        }
-
-        // draw frame/sprite info
-        infotext.setString(iss.str());
-        infotext.setPosition(sf::Vector2f(5, m_Screen->getSize().y-15));
-        m_Screen->draw(infotext);
-
-        m_Screen->display();
-    }
-
 }
 
 void U7::showTiles()

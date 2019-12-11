@@ -13,6 +13,12 @@ struct Frame
         if(ttxt) texture = sf::Texture(*ttxt);
         offset = toffset;
     }
+
+    Frame(sf::Image *img, sf::Vector2f toffset = sf::Vector2f(0,0))
+    {
+        if(img) texture.loadFromImage(*img);
+        offset = toffset;
+    }
 };
 
 #endif // CLASS_FRAME
