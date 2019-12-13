@@ -83,6 +83,25 @@ int U7::init()
         std::cout << m_Palettes.size() << " palettes loaded." << std::endl;
 
     }
+    // init translucency palette
+    // normally this is read from xform.tbl, but this is the approximate values from the translucency matrix
+    // this palette must always be the last palette
+    std::cout << "Initializing translucent palette...\n";
+    Palette transpal;
+    transpal.colors = m_Palettes[0].colors; // copy normal palette
+    // for objects with transparency flag, use the following colors instead
+    transpal.colors[254-0]  = sf::Color(254,254,255,68);   // white wash
+    transpal.colors[254-1]  = sf::Color(0,0,0,64);         // shadow
+    transpal.colors[254-2]  = sf::Color(255,254,254,119);  // white frosting
+    transpal.colors[254-3]  = sf::Color(255,8,26,84);      // red fog
+    transpal.colors[254-4]  = sf::Color(20,78,0,140);      // green fog
+    transpal.colors[254-5]  = sf::Color(0,11,255,90);      // blue binary filter
+    transpal.colors[254-6]  = sf::Color(255,238,49,53);    // yellow haze
+    transpal.colors[254-7]  = sf::Color(44,151,0,87);      // green haze w blue patches
+    transpal.colors[254-8]  = sf::Color(23,114,188,45);    // gray scale
+    transpal.colors[254-9]  = sf::Color(63,0,0,64);        // reddish
+    transpal.colors[254-10] = sf::Color(154,0,254,58);     // purple filter
+    m_Palettes.push_back(transpal);
 
     // load fonts
     std::cout << "Loading fonts (need to import from sf::image for better speed)...\n";
@@ -108,39 +127,42 @@ int U7::init()
     if(!shapes.open( std::string(U7_DIR) + "/STATIC/SHAPES.VGA")) {std::cout << "Error opening SHAPES.VGA" << std::endl; return 1;}
 
     // tiles (records 0x00 - 0x95)
-    std::cout << "Loading tiles...\n";
+    std::cout << "Loading objects...\n";
     int tile_count = 0;
+    int obj_count = 0;
+    std::ifstream tfadat;
+    tfadat.open(std::string(std::string(U7_DIR) + "/STATIC/TFA.DAT").c_str(), std::ios::binary);
+    if(!tfadat.is_open()) {std::cout << "Error opening tfa.dat!\n"; return 1;}
     for(int i = 0; i <= 0x95; i++)
     {
         std::vector<uint8_t> trecord = shapes.getRecord(i);
         std::vector<uint8_t> textrecord = textflx.getRecord(i);
-        std::string tilename;
+        std::string objname;
+        uint32_t flags;
+
+        tfadat.seekg(i*3);
+        flags = int(tfadat.get()) | ( int(tfadat.get()) << 8) | ( int(tfadat.get()) << 16);
+
         for(int k = 0; k < int(textrecord.size()); k++)
         {
             if(textrecord[k] == 0) continue;
-            tilename.push_back(char(textrecord[k]));
-        }
-        m_Tiles.push_back( new Tile(tilename, trecord, m_Palettes));
-        tile_count += m_Tiles.back()->getFrameCount();
-    }
-    std::cout << tile_count << " tiles loaded.\n";
-
-    // world objects
-    std::cout << "Loading objects...\n";
-    int obj_count = 0;
-    for(int i = 0x96; i < shapes.getRecordCount(); i++)
-    {
-        std::vector<uint8_t> trecord = shapes.getRecord(i);
-        std::vector<uint8_t> textrecord = textflx.getRecord(i);
-        std::string objname;
-        for(int k = 0; k < int(textrecord.size()); k++)
-        {
             objname.push_back(char(textrecord[k]));
         }
-        if(trecord.empty()) continue;
-        m_Objects.push_back( new WorldObject(objname, trecord, m_Palettes));
-        obj_count++;
+
+        // if object is a tile
+        if(i <= 0x95)
+        {
+            m_Tiles.push_back( new Tile(objname, trecord, m_Palettes, flags));
+            tile_count += m_Tiles.back()->getFrameCount();
+        }
+        else
+        {
+            m_Objects.push_back( new WorldObject(objname, trecord, m_Palettes, flags));
+            obj_count++;
+        }
+
     }
+    std::cout << tile_count << " tiles loaded.\n";
     std::cout << obj_count << " objects loaded.\n";
 
     // load chunks

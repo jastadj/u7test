@@ -2,9 +2,26 @@
 
 #include <iostream> // debug
 
-Object::Object(std::string tname)
+Object::Object(std::string tname, uint32_t flags)
 {
     m_Name = tname;
+
+    // set flags
+    m_HasSoundEffect = flags & 0x01;
+    m_Rotatable = flags & 0x02;
+    m_Animated = flags & 0x04;
+    m_NotWalkable = flags & 0x08;
+    m_Water = flags & 0x10;
+    m_TilesZ = (flags & 0xe0) >> 5;
+    m_Type = (flags & 0xf00) >> 8;
+    m_Trap = (flags & 0x1000) >> 12;
+    m_Door = (flags & 0x2000) >> 13;
+    m_VehiclePart = (flags & 0x4000) >> 14;
+    m_NonSelectable = (flags & 0x8000) >> 15;
+    m_TilesXMinus1 = (flags & 0x70000) >> 16;
+    m_TilesYMinus1 = (flags & 0x380000) >> 19;
+    m_LightSource = (flags & 0x400000) >> 22;
+    m_Translucent = (flags & 0x800000) >> 23;
 }
 
 Object::~Object()
@@ -30,7 +47,7 @@ sf::Vector2f Object::getFrameOffset(int frameindex)
 
 //////////////////////////////////////////////////////////////////////////////////
 //  WORLD OBJECT
-WorldObject::WorldObject(std::string name, std::vector<uint8_t> record, std::vector<Palette> &pal):Object(name)
+WorldObject::WorldObject(std::string name, std::vector<uint8_t> record, std::vector<Palette> &pal, uint32_t flags):Object(name, flags)
 {
     int frame_count = 0;
     int shape_size = 0;
@@ -88,7 +105,9 @@ WorldObject::WorldObject(std::string name, std::vector<uint8_t> record, std::vec
                 for(unsigned int n = 0; n < len; n++)
                 {
                     //newframe->pixels[start_y][start_x+n] = record[span_offset+n];
-                    image.setPixel(start_x+n, start_y, pal[0].colors[ record[span_offset+n] ]);
+                    if(m_Translucent) image.setPixel(start_x+n, start_y, pal.back().colors[ record[span_offset+n] ]);
+                    else image.setPixel(start_x+n, start_y, pal[0].colors[ record[span_offset+n] ]);
+
                 }
                 span_offset += len;
             }
@@ -108,14 +127,22 @@ WorldObject::WorldObject(std::string name, std::vector<uint8_t> record, std::vec
                     if(is_raw)
                     {
                         //for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n+block_offset] = record[span_offset+n];
-                        for(int n = 0; n < run_len; n++) image.setPixel(start_x+n+block_offset,start_y, pal[0].colors[ record[span_offset+n] ]);
+                        for(int n = 0; n < run_len; n++)
+                        {
+                            if(m_Translucent) image.setPixel(start_x+n+block_offset,start_y, pal.back().colors[ record[span_offset+n] ]);
+                            else image.setPixel(start_x+n+block_offset,start_y, pal[0].colors[ record[span_offset+n] ]);
+                        }
                         span_offset += run_len;
                     }
                     // or repeat byte for run length
                     else
                     {
                         //for(int n = 0; n < run_len; n++) newframe->pixels[start_y][start_x+n+block_offset] = record[span_offset];
-                        for(int n = 0; n < run_len; n++) image.setPixel(start_x+n+block_offset,start_y, pal[0].colors[ record[span_offset] ]);
+                        for(int n = 0; n < run_len; n++)
+                        {
+                            if(m_Translucent) image.setPixel(start_x+n+block_offset,start_y, pal[0].colors[ record[span_offset] ]);
+                            else image.setPixel(start_x+n+block_offset,start_y, pal[0].colors[ record[span_offset] ]);
+                        }
                         span_offset++;
                     }
                     block_offset += run_len;

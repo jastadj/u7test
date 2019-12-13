@@ -1,6 +1,6 @@
 #include "tile.hpp"
 
-Tile::Tile(std::string tname, std::vector<uint8_t> record, std::vector<Palette> &pal):Object(tname)
+Tile::Tile(std::string tname, std::vector<uint8_t> record, std::vector<Palette> &pal, uint32_t flags):Object(tname,flags)
 {
     const int TILE_BLOCK_SIZE = TILE_SIZE*TILE_SIZE;
 
